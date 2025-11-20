@@ -1,12 +1,7 @@
 #pragma once
 
 #include "BasicLinearAlgebra.h"
-#include <boilerplate/Utilities/QuaternionUtils.h>
-#include "boilerplate/Logging/Loggable.h"
-#include "boilerplate/Sensors/Impl/ICM20948.h"
-#include "boilerplate/Sensors/Impl/LPS22.h"
-#include "boilerplate/Sensors/Impl/MAX10S.h"
-#include "boilerplate/TimedPointer/TimedPointer.h"
+
 #include "kfConsts.h"
 #include <cstdint>
 
@@ -58,6 +53,7 @@ constexpr float accel_bias_var = pow(0.00098 * 9.8, 2);
 constexpr float mag_bias_var = 25;
 constexpr float baro_bias_var = pow(7.5, 2);
 
+constexpr float R_grav = pow(sqrt(asm330_const::accelXY_var) * 9.8, 2);
 
 }; // namespace QMEKFInds
 
@@ -142,18 +138,18 @@ class StateEstimator {
 		// 								  BLA::Matrix<3, 1> accel);
 
     BLA::Matrix<20,1> fastIMUProp(BLA::Matrix<3,1> gyro, BLA::Matrix<3, 1> accel, float att_dt, float pv_dt);
-    BLA::Matrix<19, 1> predictionFunction(BLA::Matrix<19, 19> P_, BLA::Matrix<3, 1> accelVec, BLA::Matrix<3, 1> gyroVec, float dt);
+    BLA::Matrix<19, 19> predictionFunction(BLA::Matrix<19, 19> P_, BLA::Matrix<3, 1> accelVec, BLA::Matrix<3, 1> gyroVec, float dt);
 
     // Update Functions
-    void runAccelUpdate(BLA::Matrix<20, 1> &x, BLA::Matrix<3, 1> a_b);
+    BLA::Matrix<20,1> runAccelUpdate(BLA::Matrix<20, 1> &x, BLA::Matrix<3, 1> a_b);
 
-    void runMagUpdate(BLA::Matrix<20, 1> &x, BLA::Matrix<3, 1> m_b);
+    BLA::Matrix<20,1> runMagUpdate(BLA::Matrix<20, 1> &x, BLA::Matrix<3, 1> m_b);
 	
-	  void runGPSUpdate(BLA::Matrix<20, 1> &x, BLA::Matrix<3, 1> gps);
+	  BLA::Matrix<20,1> runGPSUpdate(BLA::Matrix<20, 1> &x, BLA::Matrix<3, 1> gps);
 	
 	  // void runBaroUpdate(BLA::Matrix<20, 1> &x, BLA::Matrix<1, 1> baro);
 
-    void EKFCalcErrorInject(BLA::Matrix<20, 1> &oldState, BLA::Matrix<19, 19> &oldP, BLA::Matrix<3, 1> &sens_reading, BLA::Matrix<3, 20> H_matrix, BLA::Matrix<3, 1> h, BLA::Matrix<3, 3> R);
+    BLA::Matrix<20,1> EKFCalcErrorInject(BLA::Matrix<20, 1> &oldState, BLA::Matrix<19, 19> &oldP, BLA::Matrix<3, 1> &sens_reading, BLA::Matrix<3, 19> H, BLA::Matrix<3, 1> h, BLA::Matrix<3, 3> R);
 
     // State Vector Allocation
     BLA::Matrix<20, 1> x_min;
@@ -173,6 +169,22 @@ class StateEstimator {
 	  BLA::Matrix<19, 19> I_19 = BLA::Eye<19, 19>();
     BLA::Matrix<3, 3> I_3 = BLA::Eye<3, 3>();
 
+    //R values
+    float accel_var = pow(sqrt(asm330_const::accelXY_var) * 9.8, 2);
+    float mag_var = icm20948_const::magXYZ_var;
+    float gps_var = Max10S_const::gpsXYZ_var;
+    //R matricies
+    BLA::Matrix<3, 3> R_accel = {accel_var, 0, 0,
+                                0, accel_var, 0,
+                                0, 0, accel_var};
+
+    BLA::Matrix<3, 3> R_mag = {mag_var, 0, 0,
+                              0, mag_var, 0,
+                              0, 0, mag_var};
+
+    BLA::Matrix<3, 3> R_gps= {gps_var, 0, 0,
+                             0, gps_var, 0,
+                             0, 0, gps_var};
 
     BLA::Matrix<10, 1> R_all = {
       pow(sqrt(asm330_const::accelXY_var) * 9.8, 2),
