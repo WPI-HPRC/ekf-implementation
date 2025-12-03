@@ -1,0 +1,31 @@
+Notes:
+
+
+I change magData variable to imuData because it contains all the IMU data, not just magData
+Also please change the accel to return the m/s^2, not g's
+I change take in int variable state to onLoop, not the boolean:
+	0 = preLaunch
+	1 = high thrust
+	2 = coast
+	3 = falling down
+
+
+
+Frequencies variable in format:
+	priori step
+	accel upate
+	mag update
+	gps update
+	baro update
+
+
+
+
+
+BLA library:
+
+* Norm: BLA::Norm(vec);
+* BLA::CrossProduct(A, B);
+* Define: BLA::Matrix<2, 3> x = {1, 2, 3,
+								4, 5, 6,}
+* Multiplication, addition is just * and +
