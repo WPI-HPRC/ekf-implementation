@@ -83,7 +83,7 @@ void StateEstimator::computeInitialOrientation() {
 }
 
 BLA::Matrix<20, 1> StateEstimator::fastGyroProp(BLA::Matrix<3,1> gyro, float curr_time) {
-    float dt = curr_time - QuaternionUtils::vecMax(QuaternionUtils::extractSub(lastTimes, {0, 1, 3, 4}));;
+    // float dt = curr_time - QuaternionUtils::vecMax(QuaternionUtils::extractSub(lastTimes, {0, 1, 3, 4}));;
     BLA::Matrix<3, 1> unbiased_gyro = gyro;
 
 
