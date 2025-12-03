@@ -55,5 +55,36 @@ namespace QuaternionUtils {
 
     BLA::Matrix<4, 1> triad_BE(const BLA::Matrix<3, 1> v1_b, const BLA::Matrix<3, 1> v2_b, const BLA::Matrix<3, 1> v1_i, const BLA::Matrix<3, 1> v2_i);
 
+    BLA::Matrix<3, 1> lla2ecef(BLA::Matrix<3,1> lla);
 
+    BLA::Matrix<3, 1> ecef2lla(BLA::Matrix<3, 1> ecef);
+
+    template <size_t N, size_t M>
+    BLA::Matrix<M, 1> extractSub(const BLA::Matrix<N, 1> &x,
+                                const std::array<uint8_t, M> &inds) {
+        BLA::Matrix<M, 1> sub;
+        for (int i = 0; i < M; i++) {
+            sub(i) = x(inds[i]);
+        }
+        return sub;
+    }
+
+    template <size_t N>
+    BLA::Matrix<N, 1> extractDiag(const BLA::Matrix<N, N> &x) {
+        BLA::Matrix<N, 1> diag;
+        for (int i = 0; i < M; i++) {
+            diag(i) = x(inds[i], indx[i]);
+        }
+        return diag;
+    }
+
+    template <size_t N>
+    float vecMax(const BLA::Matrix<N, 1> &x) {
+        BLA::Matrix<N, 1> diag;
+        for (int i = 0; i < M; i++) {
+            diag(i) = x(inds[i], indx[i]);
+        }
+        return diag;
+        // TODO fix
+    }
 }

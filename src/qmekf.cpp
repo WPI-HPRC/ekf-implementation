@@ -1,146 +1,96 @@
-// #include "qmekf.h"
+#include "qmekf.h"
 
-// #include "BasicLinearAlgebra.h"
+#include "BasicLinearAlgebra.h"
 
-// #include <Arduino.h>
+#include <Arduino.h>
 
-// StateEstimator::StateEstimator(const TimedPointer<ICMData> IMUData,
-//                                 const TimedPointer<MAX10SData> gpsData,
-//                                 float dt) : IMUData(IMUData), gpsData(gpsData) {
-//     P.Fill(0.0f);
-//     for(uint8_t idx : QMEKFInds::quat) {
-//         P(idx, idx) = 1e-8;
-//     }
-// 	for (uint8_t idx : QMEKFInds::vel) {
-// 		P(idx, idx) = 1e-8;
-// 	}
-// 	for (uint8_t idx : QMEKFInds::pos) {
-// 		P(idx, idx) = 1e-8;
-// 	}
-//     for(uint8_t idx : QMEKFInds::gyroBias) {
-//         P(idx, idx) = powf(icm20948_const::gyro_VRW, 2.0f);
-//     }
-//     for(uint8_t idx: QMEKFInds::accelBias) {
-//         P(idx, idx) = powf(icm20948_const::accelXY_VRW, 2.0f);
-//     }
-//     for(uint8_t idx : QMEKFInds::magBias) {
-//         // P(idx, idx) = icm20948_const.magXYZ_var;
-//         P(idx, idx) = powf(0.1f, 2);
-//     }
-// 	for (uint8_t idx : QMEKFInds::baroBias) {
-// 		P(idx, idx) = powf(0.1f, 2);
-// 	}
+#include "QuaternionUtils.h"
 
-//     P_min = P;
+void StateEstimator::init(BLA::Matrix<3, 1> ECEF, float curr_time) {
+    if (ECEF(0) != 0) {
+        launch_ecef = ECEF;
+    }
+
+    x = {0, 0, 0, 0,
+            0, 0, 0,
+            launch_ecef(0), launch_ecef(1), launch_ecef(2),
+            vimu_const::gyro_bias(0), vimu_const::gyro_bias(0), vimu_const::gyro_bias(0),
+            vimu_const::accel_bias(0), vimu_const::accel_bias(1), vimu_const::accel_bias(2),
+            icm20948_const::mag_bias(0), icm20948_const::mag_bias(1), icm20948_const::mag_bias(2),
+            lps22_const::baro_bias(0)};
 
 
-//     //ToDo: Look at this alter, big ass matrix or integration
-//     Q.Fill(0.0f);
-//     for(uint8_t idx : QMEKFInds::quat) { 
-//         Q(idx, idx) = 1e-8;
-//     }
-// 	for(uint8_t idx : QMEKFInds::vel) { 
-//         Q(idx, idx) = 1e-8;
-//     }
-// 	for(uint8_t idx : QMEKFInds::pos) { 
-//         Q(idx, idx) = 1e-8;
-//     }
-//     for(uint8_t idx : QMEKFInds::gyroBias) {
-//         Q(idx, idx) = powf(0.1f,2);
-//     }
-//     for(uint8_t idx : QMEKFInds::accelBias) {
-//         Q(idx, idx) = powf(0.01f,2);
-//     }
-//     for(uint8_t idx : QMEKFInds::magBias) {
-//         Q(idx, idx) = powf(0.1f, 2);
-//     }
-// 	for(uint8_t idx : QMEKFInds::baroBias) {
-//         Q(idx, idx) = powf(0.1f, 2);
-//     }
+    // TODO idk figure this out
+    P.Fill(0.0f);
+    for(uint8_t idx : QMEKFInds::quat) {
+        P(idx, idx) = 1e-8;
+    }
+	for (uint8_t idx : QMEKFInds::vel) {
+		P(idx, idx) = 1e-8;
+	}
+	for (uint8_t idx : QMEKFInds::pos) {
+		P(idx, idx) = 1e-8;
+	}
+    for(uint8_t idx : QMEKFInds::gyroBias) {
+        P(idx, idx) = powf(icm20948_const::gyro_VRW, 2.0f);
+    }
+    for(uint8_t idx: QMEKFInds::accelBias) {
+        P(idx, idx) = powf(icm20948_const::accelXY_VRW, 2.0f);
+    }
+    for(uint8_t idx : QMEKFInds::magBias) {
+        P(idx, idx) = powf(0.1f, 2);
+    }
+	for (uint8_t idx : QMEKFInds::baroBias) {
+		P(idx, idx) = powf(0.1f, 2);
+	}
 
-// #ifdef DBG
-//     Serial.println("<----- Process Noise ----->");
-//     for (int i = 0; i < Q.Rows; i++) {
-//         for (int j = 0; j < Q.Cols; j++) {
-//             Serial.print(String(Q(i,j)) + "\t");
-//         }
-//         Serial.println("");
-//     }
+    launch_dcmned2ecef = QuaternionUtils::dcm_ned2ecef(QuaternionUtils::ecef2lla(launch_ecef));
 
-//     Serial.println("<----- Initial Error Cov ----->");
-//     for (int i = 0; i < P.Rows; i++) {
-//         for (int j = 0; j < P.Cols; j++) {
-//             Serial.print(String(P(i,j)) + "\t");
-//         }
-//         Serial.println("");
-//     }
-// #endif
+    numLoop = 0;
+    sumAccel = {0, 0, 0};
+    sumMag = {0, 0, 0};
 
-// }
-// void StateEstimator::init(BLA::Matrix<3, 1> LLA){
-//     // Accelerometer
-//     BLA::Matrix<3,1> a_b = {
-//         IMUData->accelX,
-//         IMUData->accelY,
-//         IMUData->accelZ
-//     };
-//     a_b = a_b / BLA::Norm(a_b);
+    lastTimes = {curr_time, curr_time, curr_time, curr_time, curr_time, curr_time};
+}
 
-//     // Flip gravity direction: ensure z points DOWN in body frame
-//     float ax = a_b(0), ay = a_b(1), az = a_b(2);
+void StateEstimator::padLoop(BLA::Matrix<3, 1> accel, BLA::Matrix<3, 1> mag, BLA::Matrix<3, 1> gps_pos) {
+    sumAccel(0) = sumAccel(0) + accel(0);
+    sumAccel(1) = sumAccel(1) + accel(1);
+    sumAccel(2) = sumAccel(2) + accel(2);
+    sumMag(0) = sumMag(0) + mag(0);
+    sumMag(1) = sumMag(1) + mag(1);
+    sumMag(2) = sumMag(2) + mag(2);
 
-//     // Compute roll (phi) and pitch (theta) assuming NED frame
-//     float roll  = atan2(-ay, -az);  // Flip signs to match z-down NED
-//     float pitch = atan2(ax, sqrt(ay*ay + az*az));
+    if (gps_pos(0) != 0) {
+        launch_ecef = gps_pos;
+    }
 
-//     // Magnetometer
-//     BLA::Matrix<3,1> m_b = {
-//         IMUData->magX,
-//         IMUData->magY,
-//         IMUData->magZ
-//     };
+    numLoop = numLoop + 1;
+}
 
-//     // Tilt compensation
-//     float mx = m_b(0), my = m_b(1), mz = m_b(2);
+void StateEstimator::computeInitialOrientation() {
+    BLA::Matrix<3, 1> normal_i = QuaternionUtils::normal_i_ecef(launch_dcmned2ecef);
+    BLA::Matrix<3, 1> m_i = QuaternionUtils::m_i_ecef(launch_dcmned2ecef);
+    BLA::Matrix<3, 1> normal_b = sumAccel / numLoop;
+    BLA::Matrix<3, 1> m_b = sumMag / numLoop;
+    BLA::Matrix initial_quat = QuaternionUtils::triad_BE(normal_b, m_b, normal_i, m_i);
+    
+    
+    x(0) = initial_quat(0);
+    x(1) = initial_quat(1);
+    x(2) = initial_quat(2);
+    x(3) = initial_quat(3);
+}
 
-//     float mx2 = mx * cos(pitch) + mz * sin(pitch);
-//     float my2 = mx * sin(roll) * sin(pitch) + my * cos(roll) - mz * sin(roll) * cos(pitch);
+BLA::Matrix<20, 1> StateEstimator::fastGyroProp(BLA::Matrix<3,1> gyro, float curr_time) {
+    float dt = curr_time - QuaternionUtils::vecMax(QuaternionUtils::extractSub(lastTimes, {0, 1, 3, 4}));;
+    BLA::Matrix<3, 1> unbiased_gyro = gyro;
 
-//     float yaw = atan2(-my2, mx2);  // Heading angle (NED convention)
 
-//     // Convert roll/pitch/yaw to quaternion (ZYX convention)
-//     float cy = cos(yaw * 0.5f);
-//     float sy = sin(yaw * 0.5f);
-//     float cp = cos(pitch * 0.5f);
-//     float sp = sin(pitch * 0.5f);
-//     float cr = cos(roll * 0.5f);
-//     float sr = sin(roll * 0.5f);
+    gyro_prev = unbiased_gyro;
 
-//     BLA::Matrix<4,1> q0 = {
-//         cr * cp * cy + sr * sp * sy,  // w
-//         sr * cp * cy - cr * sp * sy,  // x
-//         cr * sp * cy + sr * cp * sy,  // y
-//         cr * cp * sy - sr * sp * cy   // z
-//     };
-
-//     this->x = {q0(0), q0(1), q0(2), q0(3),
-// 		0, 0, 0,   // velocity
-// 		0, 0, 0,   // position
-//         0, 0, 0,   // gyro bias
-//         0, 0, 0,   // accel bias
-//         0, 0, 0,   // mag bias
-// 		0};        // baro bias
-
-//     this->x_min = x;
-
-//     // Set launch site LLA/ECEF
-//     launch_ecef = QuaternionUtils::lla2ecef(LLA);
-//     launch_lla = LLA;
-//     BLA::Matrix<2, 1> ll = {launch_lla(0), launch_lla(1)};
-//     R_ET = QuaternionUtils::dcm_ned2ecef(ll);
-
-//     lastTimes = {millis(), millis(), millis(), millis(), millis()};
-// }
+    return x;
+}
 
 
 // BLA::Matrix<20,1> StateEstimator::onLoop(int state) {

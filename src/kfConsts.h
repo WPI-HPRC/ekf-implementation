@@ -2,8 +2,8 @@
 
 #include "BasicLinearAlgebra.h"
 #include <cmath>
-constexpr static float g = 9.80665; // [m/s/s] Earth's Grav Accel
-
+constexpr static float g = 9.80665; // [m/s/s] Earth's Grav Accel TODO eventually take out when have wgs model
+// TODO: Fill out this file with correct terms and our units
 constexpr float square(float a) { return a * a; }
 
 namespace asm330_const {
@@ -15,10 +15,15 @@ constexpr float gyroX_var = square(0.0947f);   // [deg/s]
 constexpr float gyroY_var = square(0.1474f);   // [deg/s]
 constexpr float gyroZ_var = square(0.2144f);   // [deg/s]
 constexpr float gyro_VRW = 0.0241f;            // [deg/s/sqrt(Hz)]
+
+
+BLA::Matrix<3, 1> accel_var = {square(0.0020f), square(0.0014f), square(0.0014f)}; // TODO these are in g's, mode to m/s^2
+BLA::Matrix<3, 1> gyro_var = {square(0.0947f), square(0.0947f), square(0.0947f)}; // TODO these are in deg, mode to rads
 }; // namespace asm330_const
 
 namespace lps22_const {
-constexpr float baro_var = 0.0f;
+BLA::Matrix<1, 1> baro_var = {0.0f}; // uh what, why is it 0
+BLA::Matrix<1, 1> baro_bias = {0.0f};
 };
 
 namespace icm20948_const {
@@ -32,26 +37,29 @@ constexpr float gyro_VRW = 8.33e-4f;          // [rad/s/sqrt(Hz)]
 constexpr float magXYZ_var = square(0.7263f); // [uT]
 constexpr float quatVar = 0.3;                // Idk Guess
 
+BLA::Matrix<3, 1> accel_var = {square(0.0020f), square(0.0014f), square(0.0014f)}; // TODO these are in g's, mode to m/s^2
+BLA::Matrix<3, 1> gyro_var = {square(0.0947f), square(0.0947f), square(0.0947f)}; // TODO these are in deg, mode to rads
+BLA::Matrix<3, 1> mag_var = {1.0f, 2.0f, 3.0f}; // [uT]
 
+BLA::Matrix<3, 1> mag_bias =  {0, 0, 0};
 }; // namespace icm20948_const
 
 
 namespace Max10S_const {
-    constexpr float gpsXYZ_var = square(2.0); // [m] idk guess
-    constexpr float baro_var = square(7.5); // [P] idk guess
+    BLA::Matrix<3, 1> gpsPos_var = {square(2.0f), square(2.0f), square(2.0f)}; // [m] idk guess
+    BLA::Matrix<3, 1> gpsVel_var = {square(0.5f), square(0.5f), square(0.5f)}; // [m/s]
 }
 
 namespace vimu_const {
     // TODO vimu/2imu
 
-    constexpr float gyro_var = 0.0051;
-    constexpr float gyro_bias_var = square(4.9e-5f * 9.8f);
+    // TODO implement algorithm here (or don't and just do it in matlab script). For right now, just using ICM values
 
-    BLA::Matrix<3, 1> accel_var = {square(4.9e-5f * 9.9f), square(4.9e-5f * 9.9f), square(4.9e-5f * 9.9f)};
-    constexpr float accel_bias_var = square(0.00098f * 9.8f);
+    BLA::Matrix<3, 1> accel_var = {square(0.0020f), square(0.0014f), square(0.0014f)}; // TODO these are in g's, mode to m/s^2
+    BLA::Matrix<3, 1> gyro_var = {square(0.0947f), square(0.0947f), square(0.0947f)}; // TODO these are in deg, mode to rads
+    BLA::Matrix<3, 1> mag_var = {1.0f, 2.0f, 3.0f};
 
-    constexpr float mag_bias_var = 25;
-    constexpr float baro_bias_var = square(7.5f);
-
+    BLA::Matrix<3, 1> accel_bias = {0, 0, 0};
+    BLA::Matrix<3, 1> gyro_bias = {0, 0, 0};
 
 }
