@@ -6,6 +6,8 @@
 
 #include "QuaternionUtils.h"
 
+using namespace QuaternionUtils;
+
 void StateEstimator::init(BLA::Matrix<3, 1> ECEF, float curr_time) {
     if (ECEF(0) != 0) {
         launch_ecef = ECEF;
@@ -44,7 +46,7 @@ void StateEstimator::init(BLA::Matrix<3, 1> ECEF, float curr_time) {
 		P(idx, idx) = powf(0.1f, 2);
 	}
 
-    launch_dcmned2ecef = QuaternionUtils::dcm_ned2ecef(QuaternionUtils::ecef2lla(launch_ecef));
+    launch_dcmned2ecef = dcm_ned2ecef(ecef2lla(launch_ecef));
 
     numLoop = 0;
     sumAccel = {0, 0, 0};
@@ -69,11 +71,11 @@ void StateEstimator::padLoop(BLA::Matrix<3, 1> accel, BLA::Matrix<3, 1> mag, BLA
 }
 
 void StateEstimator::computeInitialOrientation() {
-    BLA::Matrix<3, 1> normal_i = QuaternionUtils::normal_i_ecef(launch_dcmned2ecef);
-    BLA::Matrix<3, 1> m_i = QuaternionUtils::m_i_ecef(launch_dcmned2ecef);
+    BLA::Matrix<3, 1> normal_i = normal_i_ecef(launch_dcmned2ecef);
+    BLA::Matrix<3, 1> m_i = m_i_ecef(launch_dcmned2ecef);
     BLA::Matrix<3, 1> normal_b = sumAccel / numLoop;
     BLA::Matrix<3, 1> m_b = sumMag / numLoop;
-    BLA::Matrix initial_quat = QuaternionUtils::triad_BE(normal_b, m_b, normal_i, m_i);
+    BLA::Matrix initial_quat = triad_BE(normal_b, m_b, normal_i, m_i);
     
     
     x(0) = initial_quat(0);
@@ -82,8 +84,10 @@ void StateEstimator::computeInitialOrientation() {
     x(3) = initial_quat(3);
 }
 
-BLA::Matrix<20, 1> StateEstimator::fastGyroProp(BLA::Matrix<3,1> gyro, float curr_time) {
-    // float dt = curr_time - QuaternionUtils::vecMax(QuaternionUtils::extractSub(lastTimes, {0, 1, 3, 4}));;
+BLA::Matrix<20, 1> StateEstimator::fastGyroProp(BLA::Matrix<3,1> gyro, float curr_time) 
+{
+    std::array<uint8_t, 4> uhh = {0, 1, 3, 4};
+    //float dt = curr_time - vecMax(extractSub(lastTimes, uhh));
     BLA::Matrix<3, 1> unbiased_gyro = gyro;
 
 
@@ -162,7 +166,7 @@ BLA::Matrix<20, 1> StateEstimator::fastGyroProp(BLA::Matrix<3,1> gyro, float cur
 // 	}
 	
 // 	if (run_gps_update) {
-//         BLA::Matrix<3,1> gps_ecef = QuaternionUtils::lla2ecef(gpsData);
+//         BLA::Matrix<3,1> gps_ecef = lla2ecef(gpsData);
 // 		runGPSUpdate(x, gps_ecef);
 // 		lastTimes(3) = millis();
 // 	}
@@ -205,12 +209,12 @@ BLA::Matrix<20, 1> StateEstimator::fastGyroProp(BLA::Matrix<3,1> gyro, float cur
 //         x(QMEKFInds::q_y),
 //         x(QMEKFInds::q_z),
 //     };
-//     q = QuaternionUtils::quatMultiply(q, dq);
+//     q = quatMultiply(q, dq);
 //     BLA::Matrix<4,1> qNorm = {q(0) / BLA::Norm(q), q(1) / BLA::Norm(q), q(2) / BLA::Norm(q), q(3) / BLA::Norm(q)};
 	
 	
 	
-// 	BLA::Matrix<3,1> v_dot = QuaternionUtils::quatToRot(q) * accel + g_i;
+// 	BLA::Matrix<3,1> v_dot = quatToRot(q) * accel + g_i;
 // 	BLA::Matrix<3,1> old_v = {
 // 		x(QMEKFInds::v_x), x(QMEKFInds::v_y), x(QMEKFInds::v_z)
 // 	};
@@ -233,8 +237,8 @@ BLA::Matrix<20, 1> StateEstimator::fastGyroProp(BLA::Matrix<3,1> gyro, float cur
 // }
 
 // BLA::Matrix<19, 19> StateEstimator::predictionFunction(BLA::Matrix<19, 19> P_, BLA::Matrix<3, 1> accelVec, BLA::Matrix<3, 1> gyroVec, float dt) {
-//     BLA::Matrix<3,3> gyroSkew = QuaternionUtils::skewSymmetric(gyroVec);
-//     BLA::Matrix<3,3> accelSkew = QuaternionUtils::skewSymmetric(accelVec);
+//     BLA::Matrix<3,3> gyroSkew = skewSymmetric(gyroVec);
+//     BLA::Matrix<3,3> accelSkew = skewSymmetric(accelVec);
 
 //     BLA::Matrix<4, 1> q =
 //     {
@@ -244,7 +248,7 @@ BLA::Matrix<20, 1> StateEstimator::fastGyroProp(BLA::Matrix<3,1> gyro, float cur
 //         x(QMEKFInds::q_z)
 //     };
     
-//     BLA::Matrix<3, 3> rotMatrix = QuaternionUtils::quatToRot(q);
+//     BLA::Matrix<3, 3> rotMatrix = quatToRot(q);
 
 //     BLA::Matrix<19, 19> F;
 //     F.Fill(0);
@@ -336,12 +340,12 @@ BLA::Matrix<20, 1> StateEstimator::fastGyroProp(BLA::Matrix<3,1> gyro, float cur
 
 //     BLA::Matrix<3, 19> H_accel;
 //     H_accel.Fill(0);
-//     H_accel.Submatrix<3, 3>(0, 0) = QuaternionUtils::skewSymmetric(QuaternionUtils::quat2DCM(q) * (-1.0f * normal_i));
-//     H_accel.Submatrix<3, 3>(0, QMEKFInds::ab_x - 1) = -1.0f * QuaternionUtils::quat2DCM(q);
+//     H_accel.Submatrix<3, 3>(0, 0) = skewSymmetric(quat2DCM(q) * (-1.0f * normal_i));
+//     H_accel.Submatrix<3, 3>(0, QMEKFInds::ab_x - 1) = -1.0f * quat2DCM(q);
 
 //     BLA::Matrix<3, 1> h_accel;
 
-//     h_accel = QuaternionUtils::quat2DCM(q) * normal_i;
+//     h_accel = quat2DCM(q) * normal_i;
 
 //     EKFCalcErrorInject(x, P, accel_meas, H_accel, h_accel, R_accel);
     
@@ -359,19 +363,19 @@ BLA::Matrix<20, 1> StateEstimator::fastGyroProp(BLA::Matrix<3,1> gyro, float cur
 
 //     BLA::Matrix<3, 19> H_mag;
 //     H_mag.Fill(0);
-//     H_mag.Submatrix<3, 3>(0, 0) =  QuaternionUtils::skewSymmetric(QuaternionUtils::quat2DCM(q) * m_i);
+//     H_mag.Submatrix<3, 3>(0, 0) =  skewSymmetric(quat2DCM(q) * m_i);
 //     H_mag.Submatrix<3, 3>(0, QMEKFInds::gb_x) = I_3;
 
 //     BLA::Matrix<3, 1> h_mag;
 
-//     h_mag = QuaternionUtils::quat2DCM(q) * m_i;
+//     h_mag = quat2DCM(q) * m_i;
 
 //     EKFCalcErrorInject(x, P, mag_meas, H_mag, h_mag, R_mag);
     
 // }
 
 // BLA::Matrix<20, 1> StateEstimator::runGPSUpdate(BLA::Matrix<20, 1> &x, BLA::Matrix<3, 1> gps_meas_ecef) {
-//     BLA::Matrix<3, 1> pos_ned = QuaternionUtils::ecef2ned(gps_meas_ecef, launch_ecef, R_ET);
+//     BLA::Matrix<3, 1> pos_ned = ecef2ned(gps_meas_ecef, launch_ecef, R_ET);
 
 //     BLA::Matrix<3, 19> H_gps;
 //     H_gps.Fill(0);
@@ -419,7 +423,7 @@ BLA::Matrix<20, 1> StateEstimator::fastGyroProp(BLA::Matrix<3,1> gyro, float cur
 //         x(2),
 //         x(3)
 //     };
-//     BLA::Matrix<4, 1> q = QuaternionUtils::quatMultiply(old_q, dq);
+//     BLA::Matrix<4, 1> q = quatMultiply(old_q, dq);
 
 //     // Set quats
 //     x(0) = q(0);
