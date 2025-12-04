@@ -261,7 +261,7 @@ BLA::Matrix<3,1> QuaternionUtils::lla2ecef(BLA::Matrix<3,1> lla) {
 
 }
 
-BLA::Matrix<3, 1> ecef2lla(BLA::Matrix<3, 1> ecef) {
+BLA::Matrix<3, 1> QuaternionUtils::ecef2lla(BLA::Matrix<3, 1> ecef) {
     // Follows this kid idk if right, gotta test, but I'm not writing this bs myself
     // I think this is's impl not super precise, but not that deep (I think)
     // https://github.com/kvenkman/ecef2lla/blob/master/ecef2lla.py
@@ -301,42 +301,19 @@ BLA::Matrix<3, 1> ecef2lla(BLA::Matrix<3, 1> ecef) {
 	return lla;
 }
 
-template <size_t N, size_t M> BLA::Matrix<M, 1> extractSub(const BLA::Matrix<N, 1> &x, const std::array<uint8_t, M> &inds) {
-        BLA::Matrix<M, 1> sub;
-        for (int i = 0; i < M; i++) {
-            sub(i) = x(inds[i]);
-        }
-        return sub;
-    }
-
-template <size_t N> BLA::Matrix<N, 1> QuaternionUtils::extractDiag(const BLA::Matrix<N, N> &x) 
-    {
-    BLA::Matrix<N, 1> diag;
-    for (int i = 0; i < N; i++) 
-        {
-        diag(i) = x(i,i);
-        }
-    return diag;
-    }
-
-template <size_t N>float QuaternionUtils::vecMax(const BLA::Matrix<N, 1> &x) 
-    {
-        float maxVal = x(0);
-        for (int i = 1; i < N; i++) 
-        {
-            if (x(i) > maxVal) {
-                maxVal = x(i);
-            }
-        }
-        return maxVal;
-    }
-
-BLA::Matrix<4, 1> QuaternionUtils::normalizeQuaternion(BLA::Matrix<4, 1> quat) 
-{
+BLA::Matrix<4, 1> QuaternionUtils::normalizeQuaternion(BLA::Matrix<4, 1> quat) {
     BLA::Matrix<4, 1> new_quat = quat / BLA::Norm(quat);
     return new_quat;
 }
 
+float QuaternionUtils::cosd(float rads) {
+    float pi = 3.141592653589;
+    return cos(rads * (180.0f / pi));
+}
 
+float QuaternionUtils::sind(float rads) {
+    float pi = 3.141592653589;
+    return sin(rads * (180.0f / pi));
+}
 
 

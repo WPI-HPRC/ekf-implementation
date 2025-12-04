@@ -1,6 +1,7 @@
 #pragma once
 
 #include "BasicLinearAlgebra.h"
+#include <array>
 
 namespace QuaternionUtils {
     // Convert quaternion (w,x,y,z) to rotation matrix
@@ -59,15 +60,67 @@ namespace QuaternionUtils {
 
     BLA::Matrix<3, 1> ecef2lla(BLA::Matrix<3, 1> ecef);
 
-    template <size_t N, size_t M>
-    BLA::Matrix<M, 1> extractSub(const BLA::Matrix<N, 1> &x,
-                                 const std::array<uint8_t, M> &inds);
+    template <int N, int M>
+    BLA::Matrix<M, 1> extractSub(const BLA::Matrix<N, 1> &x, const BLA::Matrix<M, 1> inds) {
+        BLA::Matrix<M, 1> sub;
+        for (size_t i = 0; i < M; i++) {
+            sub(i) = x(inds(i, 0));
+        }
+        return sub;
+    }
 
-    template <size_t N>
-    BLA::Matrix<N, 1> extractDiag(const BLA::Matrix<N, N> &x);
+    template <int N>
+    BLA::Matrix<N, 1> extractDiag(const BLA::Matrix<N, N> &x) {
+        BLA::Matrix<N, 1> diag;
+        for (int i = 0; i < N; i++) {
+            diag(i) = x(i,i);
+        }
+        return diag;
+    }
 
-    template <size_t N>
-    float vecMax(const BLA::Matrix<N, 1> &x);
+    template <int N>
+    BLA::Matrix<N, N> toDiag(const BLA::Matrix<N, 1> x) {
+        BLA::Matrix<N, N> diag;
+        diag.Fill(0.0f);
+        for (int i = 0; i < N; i++) {
+            diag(i, i) = x(i, 0);
+        }
+        return diag;
+    }
+
+    template <int N>
+    float vecMax(const BLA::Matrix<N, 1> &x) {
+        float maxVal = x(0, 0);
+        for (int i = 0; i < N; i++) {
+            if (x(i, 0) > maxVal) {
+                maxVal = x(i, 0);
+            }
+        }
+        return maxVal;
+    }
+
+    template <int N, int M>
+    BLA::Matrix<N, 1> setSub(BLA::Matrix<N, 1> &x, const BLA::Matrix<M, 1> inds, const BLA::Matrix<M, 1> vals) {
+        for (int i = 0; i < M; i++) {
+            x(inds(i, 0), 0) = vals(i, 0);
+        }
+        return x;
+    }
 
     BLA::Matrix<4, 1> normalizeQuaternion(BLA::Matrix<4, 1> quat);
+
+    float cosd(float rads);
+    float sind(float rads);
+
+    template <int N, int M>
+    BLA::Matrix<N + M, 1> stack(BLA::Matrix<N, 1> x, BLA::Matrix<M, 1> y) {
+        BLA::Matrix<N + M, 1> ret;
+        for (int i = 0; i < N; i++) {
+            ret(i, 0) = x(i, 0);
+        }
+        for (int i = 0; i < M; i++) {
+            ret(N + i, 0) = y(i, 0);
+        }
+        return ret;
+    }
 }

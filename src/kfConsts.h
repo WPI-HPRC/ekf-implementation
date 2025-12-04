@@ -24,6 +24,14 @@ BLA::Matrix<3, 1> gyro_var = {square(0.0947f), square(0.0947f), square(0.0947f)}
 namespace lps22_const {
 BLA::Matrix<1, 1> baro_var = {0.0f}; // uh what, why is it 0
 BLA::Matrix<1, 1> baro_bias = {0.0f};
+
+constexpr float P0 = 101325.0; // [P] trad sea level
+constexpr float L = -0.0065;
+constexpr float T0 = 288.15;
+constexpr float M = 0.0289644;
+constexpr float R = 8.3144598;
+constexpr float g_e = 9.80665; // [m/s^2]
+
 };
 
 namespace icm20948_const {
