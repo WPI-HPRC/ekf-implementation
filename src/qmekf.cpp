@@ -93,7 +93,7 @@ BLA::Matrix<20, 1> StateEstimator::fastGyroProp(BLA::Matrix<3,1> gyro, float cur
     // TODO combine gyro through vimu
 
     BLA::Matrix<3, 1> unbiased_gyro = gyro - extractSub(x, QMEKFInds::gyroBias);
-    BLA::Matrix<4, 1> new_q = quatMultiply(extractSub(x, QMEKFInds::quat), rotVec2Quat(unbiased_gyro));
+    BLA::Matrix<4, 1> new_q = quatMultiply(extractSub(x, QMEKFInds::quat), rotVec2dQuat(unbiased_gyro * dt));
     x = setSub(x, QMEKFInds::quat, new_q);
     gyro_prev = unbiased_gyro;
     lastTimes(0) = curr_time;
@@ -101,13 +101,13 @@ BLA::Matrix<20, 1> StateEstimator::fastGyroProp(BLA::Matrix<3,1> gyro, float cur
 }
 
 BLA::Matrix<20, 1> StateEstimator::fastAccelProp(BLA::Matrix<3, 1> accel, float curr_time) {
-    BLA::Matrix<4, 1> last_relevant_times = (1, 4, 5);
+    BLA::Matrix<3, 1> last_relevant_times = {1, 4, 5};
     float dt = curr_time - vecMax(extractSub(lastTimes, last_relevant_times));
 
     // TODO combine accel through vimu
 
     BLA::Matrix<3, 1> unbiased_accel = accel - extractSub(x, QMEKFInds::accelBias);
-    BLA::Matrix<3, 3> q_conj_dcm = quat2DCM(quatConjugate((x, QMEKFInds::quat)));
+    BLA::Matrix<3, 3> q_conj_dcm = quat2DCM(quatConjugate(extractSub(x, QMEKFInds::quat)));
     BLA::Matrix<3, 1> v = ((q_conj_dcm * unbiased_accel + q_conj_dcm * accel_prev) / 2.0f) + g_i_ecef(launch_dcmned2ecef) * dt + vel_prev;
     BLA::Matrix<3, 1> p = ((v + vel_prev) / 2.0f) * dt + pos_prev;
     x = setSub(x, QMEKFInds::vel, v);
@@ -122,16 +122,17 @@ BLA::Matrix<20, 1> StateEstimator::fastAccelProp(BLA::Matrix<3, 1> accel, float 
 
 
 BLA::Matrix<19, 19> StateEstimator::ekfPredict(float curr_time) {
+    // TODO finish this. too lazy
     BLA::Matrix<4, 1> att_last_relevant_times = {0, 1, 3, 4};
-    BLA::Matrix<4, 1> pv_last_relevant_times = (1, 4, 5);
-    float att_dt = curr_time - vecMax(extractSub(lastTimes, att_last_relevant_times));
+    BLA::Matrix<4, 1> pv_last_relevant_times = {1, 4, 5};
+    // float att_dt = curr_time - vecMax(extractSub(lastTimes, att_last_relevant_times));
     float pv_dt = curr_time - vecMax(extractSub(lastTimes, pv_last_relevant_times));
 
 
     BLA::Matrix<3,3> gyroSkew = skewSymmetric(gyro_prev);
     BLA::Matrix<3,3> accelSkew = skewSymmetric(accel_prev);
 
-    BLA::Matrix<3, 3> q_conj_dcm = quat2DCM(quatConjugate((x, QMEKFInds::quat)));
+    BLA::Matrix<3, 3> q_conj_dcm = quat2DCM(quatConjugate(extractSub(x, QMEKFInds::quat)));
 
     BLA::Matrix<19, 19> F;
     F.Fill(0);
@@ -248,13 +249,14 @@ BLA::Matrix<20, 1> StateEstimator::runMagUpdate(BLA::Matrix<3, 1> m_b, float cur
 }
 
 BLA::Matrix<20, 1> StateEstimator::runGPSUpdate(BLA::Matrix<3, 1> gpsPos, BLA::Matrix<3, 1> gpsVel, bool velOrientation, float curr_time) {
+    // TODO something is wrong with gps vel
     lastTimes(4) = curr_time;
     if (velOrientation) {
-        BLA::Matrix<9, 1> combined_sens = stack(stack(gpsVel, gpsPos), gpsVel);
+        BLA::Matrix<9, 1> combined_sens = vstack(vstack(gpsVel, gpsPos), gpsVel);
         BLA::Matrix<3, 1> v_b = {BLA::Norm(gpsVel), 0, 0};
         BLA::Matrix<4, 1> q = extractSub(x, QMEKFInds::quat);
         BLA::Matrix<3, 1> h_vi = quat2DCM(quatConjugate(q)) * v_b;
-        BLA::Matrix<9, 1> h_gps = stack(extractSub(x, stack(QMEKFInds::vel, QMEKFInds::pos)), extractSub(x, QMEKFInds::vel));
+        BLA::Matrix<9, 1> h_gps = vstack(extractSub(x, vstack(QMEKFInds::vel, QMEKFInds::pos)), extractSub(x, QMEKFInds::vel));
         
         BLA::Matrix<9, 19> H_gps;
         H_gps.Fill(0);
@@ -262,19 +264,19 @@ BLA::Matrix<20, 1> StateEstimator::runGPSUpdate(BLA::Matrix<3, 1> gpsPos, BLA::M
         H_gps.Submatrix<3, 3>(3, QMEKFInds::p_x - 1) = I_3;
         H_gps.Submatrix<3, 3>(6, 0) = -1.0f * quat2DCM(quatConjugate(q)) * skewSymmetric(v_b);
 
-        BLA::Matrix<9, 9> R = toDiag(stack(stack(Max10S_const::gpsVel_var, Max10S_const::gpsPos_var), Max10S_const::gpsVel_var));
+        BLA::Matrix<9, 9> R = toDiag(vstack(vstack(Max10S_const::gpsVel_var, Max10S_const::gpsPos_var), Max10S_const::gpsVel_var));
 
         return ekfCalcErrorInject(combined_sens, H_gps, h_gps, R);
     } else {
-        BLA::Matrix<6, 1> combined_sens = stack(gpsVel, gpsPos);
+        BLA::Matrix<6, 1> combined_sens = vstack(gpsVel, gpsPos);
         BLA::Matrix<6, 19> H_gps;
         H_gps.Fill(0);
         H_gps.Submatrix<3, 3>(0, QMEKFInds::v_x - 1) = I_3;
         H_gps.Submatrix<3, 3>(3, QMEKFInds::p_x - 1) = I_3;
 
-        BLA::Matrix<6, 1> h_gps = extractSub(x, stack(QMEKFInds::vel, QMEKFInds::pos));
+        BLA::Matrix<6, 1> h_gps = extractSub(x, vstack(QMEKFInds::vel, QMEKFInds::pos));
 
-        BLA::Matrix<6, 6> R = toDiag(stack(Max10S_const::gpsVel_var, Max10S_const::gpsPos_var));
+        BLA::Matrix<6, 6> R = toDiag(vstack(Max10S_const::gpsVel_var, Max10S_const::gpsPos_var));
         return ekfCalcErrorInject(combined_sens, H_gps, h_gps, R);
     }
     
@@ -286,7 +288,7 @@ BLA::Matrix<20, 1> StateEstimator::runBaroUpdate(BLA::Matrix<1, 1> baro, float c
 
     BLA::Matrix<1, 1> h_baro = {std::pow(lps22_const::P0 * (1.0f + (lps22_const::L * lla(2))) / lps22_const::T0, -1.0f * lps22_const::g_e * lps22_const::M / (lps22_const::R * lps22_const::L))};
 
-    float dP_dh = (-1.0f * lps22_const::g_e * h_baro(0, 0) * lps22_const::M) / (lps22_const::R * (lps22_const::T0 + lps22_const::L * lla(3)));
+    float dP_dh = (-1.0f * lps22_const::g_e * h_baro(0, 0) * lps22_const::M) / (lps22_const::R * (lps22_const::T0 + lps22_const::L * lla(2)));
     BLA::Matrix<3, 1> dh_decef = {cosd(lla(0)) * cosd(lla(1)), cosd(lla(0)) * sind(lla(1)), sind(lla(0))};
     BLA::Matrix<3, 1> dP_decef = dP_dh * dh_decef;
 
@@ -317,7 +319,7 @@ BLA::Matrix<20, 1> StateEstimator::ekfCalcErrorInject(BLA::Matrix<rows, 1> &sens
     BLA::Matrix<3, 1> alpha = extractSub(postErrorState, QMEKFInds::smallAngle);
 
     BLA::Matrix old_q = extractSub(x, QMEKFInds::quat);
-    BLA::Matrix<4, 1> q = quatMultiply(old_q, smallAngleRotVec2Quat(alpha));
+    BLA::Matrix<4, 1> q = quatMultiply(old_q, smallAnglerotVec2dQuat(alpha));
     
     x(0) = q(0);
     x(1) = q(1);
@@ -341,5 +343,36 @@ BLA::Matrix<20, 1> StateEstimator::ekfCalcErrorInject(BLA::Matrix<rows, 1> &sens
     x(19) += postErrorState(18);
     
     return x;
+}
+
+BLA::Matrix<4, 1> StateEstimator::getNEDOrientation(BLA::Matrix<3, 3> &dcm_ned2ecef) {
+    // TODO inefficient, use quat mult
+    return dcm2quat(~dcm_ned2ecef * quat2DCM(extractSub(x, QMEKFInds::quat)));
+}
+
+BLA::Matrix<3, 1> StateEstimator::getNEDPosition(BLA::Matrix<3, 3> &dcm_ned2ecef, BLA::Matrix<3, 1> launch_ecef) {
+    return ecef2nedVec(extractSub(x, QMEKFInds::pos), launch_ecef, launch_dcmned2ecef);
+}
+
+
+// TODO for all of these
+float getLastAttProp() {
+    // TODO
+    return 0.0f;
+}
+
+float getLastAttUpdate() {
+    // TODO
+    return 0.0f;
+}
+
+float getLastPVProp() {
+    // TODO
+    return 0.0f;
+}
+
+float getLastPVUpdate() {
+    // TODO
+    return 0.0f;
 }
 

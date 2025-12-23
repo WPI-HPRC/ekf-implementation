@@ -54,7 +54,7 @@ BLA::Matrix<1, 1> baroBias = {bb_z};
 /**
  * @name QMEKFStateEstimator
  * @author QMEKF team
- * @brief Attitude and Position/Velocity estimation. See matlab simulation for details
+ * @brief Integrated Attitude and Position/Velocity estimation. See matlab simulation for details
  */
 class StateEstimator {
 
@@ -89,6 +89,8 @@ class StateEstimator {
     template<int rows>
     BLA::Matrix<20, 1> ekfCalcErrorInject(BLA::Matrix<rows, 1> &sens_reading, BLA::Matrix<rows, 19> H, BLA::Matrix<rows, 1> h, BLA::Matrix<rows, rows> R);
 
+    BLA::Matrix<4, 1> getNEDOrientation(BLA::Matrix<3, 3> &dcm_ned2ecef);
+    BLA::Matrix<3, 1> getNEDPosition(BLA::Matrix<3, 3> &dcm_ned2ecef, BLA::Matrix<3, 1> launch_ecef);
   private:
     // Identity Matrices
     BLA::Matrix<20, 20> I_20 = BLA::Eye<20, 20>();
@@ -114,6 +116,15 @@ class StateEstimator {
     float numLoop;
     BLA::Matrix<3, 1> sumAccel;
     BLA::Matrix<3, 1> sumMag;
+
+
+    float getLastAttProp();
+    float getLastAttUpdate();
+    float getLastPVProp();
+    float getLastPVUpdate();
+
+
+
 
     // //R matricies
     // BLA::Matrix<3, 3> R_accel = {accel_var, 0, 0,
