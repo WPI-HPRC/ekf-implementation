@@ -15,7 +15,7 @@ void StateEstimator::init(BLA::Matrix<3, 1> ECEF, float curr_time) {
         launch_ecef = ECEF;
     }
 
-    x = {0, 0, 0, 0,
+    x = {1, 0, 0, 0,
             0, 0, 0,
             launch_ecef(0), launch_ecef(1), launch_ecef(2),
             vimu_const::gyro_bias(0), vimu_const::gyro_bias(0), vimu_const::gyro_bias(0),
@@ -125,7 +125,7 @@ BLA::Matrix<19, 19> StateEstimator::ekfPredict(float curr_time) {
     // TODO finish this. too lazy
     BLA::Matrix<4, 1> att_last_relevant_times = {0, 1, 3, 4};
     BLA::Matrix<4, 1> pv_last_relevant_times = {1, 4, 5};
-    // float att_dt = curr_time - vecMax(extractSub(lastTimes, att_last_relevant_times));
+    float att_dt = curr_time - vecMax(extractSub(lastTimes, att_last_relevant_times));
     float pv_dt = curr_time - vecMax(extractSub(lastTimes, pv_last_relevant_times));
 
 
@@ -303,6 +303,14 @@ BLA::Matrix<20, 1> StateEstimator::runBaroUpdate(BLA::Matrix<1, 1> baro, float c
     return ekfCalcErrorInject(baro, H_baro, h_baro, R);
 }
 
+void StateEstimator::setTemp(float new_temp) {
+    curr_temp = new_temp;
+}
+
+float StateEstimator::getTemp() {
+    return curr_temp;
+}
+
 template<int rows>
 BLA::Matrix<20, 1> StateEstimator::ekfCalcErrorInject(BLA::Matrix<rows, 1> &sens_reading, BLA::Matrix<rows, 19> H, BLA::Matrix<rows, 1> h, BLA::Matrix<rows, rows> R) {
     BLA::Matrix<rows, 1> residual = sens_reading - h;
@@ -350,10 +358,22 @@ BLA::Matrix<4, 1> StateEstimator::getNEDOrientation(BLA::Matrix<3, 3> &dcm_ned2e
     return dcm2quat(~dcm_ned2ecef * quat2DCM(extractSub(x, QMEKFInds::quat)));
 }
 
-BLA::Matrix<3, 1> StateEstimator::getNEDPosition(BLA::Matrix<3, 3> &dcm_ned2ecef, BLA::Matrix<3, 1> launch_ecef) {
-    return ecef2nedVec(extractSub(x, QMEKFInds::pos), launch_ecef, launch_dcmned2ecef);
+BLA::Matrix<3, 1> StateEstimator::getNEDPositionBody(BLA::Matrix<3, 3> &dcm_ned2ecef, BLA::Matrix<3, 1> launch_ecef) {
+    // Returns the distance from 
+    return ecef2nedVec(extractSub(x, QMEKFInds::pos) - qRot(extractSub(x, QMEKFInds::quat), mars_const::bodyToVIMUDis), launch_ecef, dcm_ned2ecef);
 }
 
+BLA::Matrix<3, 1> StateEstimator::getBodyAngularVel() {
+    return gyro_prev;
+}
+
+BLA::Matrix<3, 1> StateEstimator::getVIMUAccel() {
+    return accel_prev;
+}
+
+float StateEstimator::getGs() {
+    return BLA::Norm(getVIMUAccel());
+}
 
 // TODO for all of these
 float getLastAttProp() {
@@ -376,3 +396,10 @@ float getLastPVUpdate() {
     return 0.0f;
 }
 
+// GPS is less accurate in D direction, so account for that here. Vel then pos
+BLA::Matrix<6, 1> getGPSVar(BLA::Matrix<3, 3> dcm_ned2ecef) {
+    BLA::Matrix<6, 1> tmp = {0, 1, 2};
+    return tmp;
+    // return dcm_ned2ecef * gps_var;
+
+}

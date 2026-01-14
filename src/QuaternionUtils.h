@@ -11,6 +11,8 @@ namespace QuaternionUtils {
     // Quaternion to DCM
     BLA::Matrix<3, 3> quat2DCM(const BLA::Matrix<4, 1> &quat);
 
+    BLA::Matrix<3, 3> quat2DCMInv(const BLA::Matrix<4, 1> &quat);
+
     // Get the up vector from the rotation matrix for the payload
     // In NED coordinates, this will be the second column of the rotation matrix
     BLA::Matrix<3,1> getUpVector(const BLA::Matrix<3,3> &rot);
@@ -44,11 +46,15 @@ namespace QuaternionUtils {
     BLA::Matrix<3, 1> ecef2nedVec(const BLA::Matrix<3, 1> &ecef_meas, const BLA::Matrix<3, 1> &launch_ecef, const BLA::Matrix<3, 3> &R_ET);
 
     BLA::Matrix<3, 1> ned2ecefVec(const BLA::Matrix<3, 1> &ned_meas, const BLA::Matrix<3, 1> &launch_ecef, const BLA::Matrix<3, 3> &R_ET);
+    
+    BLA::Matrix<3, 1> quat2RPY(const BLA::Matrix<4, 1> &p);
 
     //Quaternion Conjugate
     BLA::Matrix<4, 1> quatConjugate(const BLA::Matrix<4, 1> &p);
 
     BLA::Matrix<3, 1> qRot(const BLA::Matrix<4, 1> &q, BLA::Matrix<3, 1> vec);
+
+    BLA::Matrix<3, 1> qInvRot(const BLA::Matrix<4, 1> &q, BLA::Matrix<3, 1> vec);
 
     BLA::Matrix<3, 1> g_i_ecef(const BLA::Matrix<3, 3> dcm_ned2ecef);
 
@@ -56,13 +62,31 @@ namespace QuaternionUtils {
 
     BLA::Matrix<3, 1> normal_i_ecef(const BLA::Matrix<3, 3> dcm_ned2ecef);
 
+    // One day...
+    BLA::Matrix<3, 1> sun_i_ecef(float t_utc);
+
+    // One day...
+    BLA::Matrix<2, 1> earth_horizon();
+
     BLA::Matrix<3, 3> vecs2mat(const BLA::Matrix<3, 1> v1, const BLA::Matrix<3, 1> v2, const BLA::Matrix<3, 1> v3);
 
     BLA::Matrix<4, 1> triad_BE(const BLA::Matrix<3, 1> v1_b, const BLA::Matrix<3, 1> v2_b, const BLA::Matrix<3, 1> v1_i, const BLA::Matrix<3, 1> v2_i);
 
+    // TODO one day implement when have more vector observations
+    BLA::Matrix<4, 1> esoq2_EB(const BLA::Matrix<3, 4> v_b, const BLA::Matrix<3, 4> v_i);
+
     BLA::Matrix<3, 1> lla2ecef2(BLA::Matrix<3,1> lla);
 
     BLA::Matrix<3, 1> ecef2lla(BLA::Matrix<3, 1> ecef);
+
+    BLA::Matrix<3, 1> combine_variances(const BLA::Matrix<3, 2> &A, const BLA::Matrix<2, 1> w);
+
+    BLA::Matrix<3, 1> fuse_measurements(const BLA::Matrix<3, 2> &A, const BLA::Matrix<2, 1> w);
+
+    template <int N>
+    BLA::Matrix<N, N> pinv(const BLA::Matrix<N, N> &A) {
+        return BLA::Inverse(~A * A) * ~A;
+    }
 
     template <int N, int M>
     BLA::Matrix<M, 1> extractSub(const BLA::Matrix<N, 1> &x, const BLA::Matrix<M, 1> inds) {
@@ -180,4 +204,5 @@ namespace QuaternionUtils {
         }
         Serial.println("}\n");
     }
+
 }

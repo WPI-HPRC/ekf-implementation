@@ -20,6 +20,9 @@ Frequencies variable in format:
 	baro update
 
 
+Note: Could account for distance between the vimu and gps/baro for position calculations, but honesely, is wastes more cpu time than its worth
+
+
 
 
 
@@ -31,4 +34,8 @@ BLA library:
 								4, 5, 6,}
 * Multiplication, addition is just *, +, / (note: ensure by a float. ex: 2.0f)
 * Submatrix: A.Submatrix<2,2>(1,0); Of a 3x2 mat A, returns bottom 2 rows
+* Transpose: A: ~a
+* Inverse: A: BLA::Inverse(A)
+* PINV: A: QuaternionUtils::pinv(A)
+
 

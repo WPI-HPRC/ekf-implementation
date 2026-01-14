@@ -66,6 +66,8 @@ class StateEstimator {
     // Error Covariance Allocation TODO eventually
     BLA::Matrix<19, 19> P;
 
+    float curr_temp;
+
     /**
      * @name init
      * @author @frostydev99
@@ -85,13 +87,26 @@ class StateEstimator {
     BLA::Matrix<20, 1> runMagUpdate(BLA::Matrix<3, 1> m_b, float curr_time);
     BLA::Matrix<20, 1> runGPSUpdate(BLA::Matrix<3, 1> gpsPos, BLA::Matrix<3, 1> gpsVel, bool velOrientation, float curr_time);
     BLA::Matrix<20, 1> runBaroUpdate(BLA::Matrix<1, 1> baro, float curr_time);
+    void setTemp(float curr_temp);
+    float getTemp();
 
     template<int rows>
     BLA::Matrix<20, 1> ekfCalcErrorInject(BLA::Matrix<rows, 1> &sens_reading, BLA::Matrix<rows, 19> H, BLA::Matrix<rows, 1> h, BLA::Matrix<rows, rows> R);
 
     BLA::Matrix<4, 1> getNEDOrientation(BLA::Matrix<3, 3> &dcm_ned2ecef);
-    BLA::Matrix<3, 1> getNEDPosition(BLA::Matrix<3, 3> &dcm_ned2ecef, BLA::Matrix<3, 1> launch_ecef);
-  private:
+    
+    // Return the position in the body frame
+    BLA::Matrix<3, 1> getNEDPositionBody(BLA::Matrix<3, 3> &dcm_ned2ecef, BLA::Matrix<3, 1> launch_ecef);
+    BLA::Matrix<3, 1> getBodyAngularVel();
+
+    BLA::Matrix<3, 1> getVIMUAccel();
+
+    // TODO figure out exactly how to implement this. 
+    bool isEKFDiverging();
+
+    float getGs();
+    
+    private:
     // Identity Matrices
     BLA::Matrix<20, 20> I_20 = BLA::Eye<20, 20>();
 	  BLA::Matrix<19, 19> I_19 = BLA::Eye<19, 19>();
@@ -123,7 +138,7 @@ class StateEstimator {
     float getLastPVProp();
     float getLastPVUpdate();
 
-
+    BLA::Matrix<6, 1> getGPSVar(BLA::Matrix<3, 3> dcm_ned2ecef);
 
 
     // //R matricies

@@ -43,7 +43,7 @@ BLA::Matrix<3,1> QuaternionUtils::getRightVector(const BLA::Matrix<3,3> &rot) {
 }
 
 
-// Works
+// TODO redo
 BLA::Matrix<3, 3> QuaternionUtils::quat2DCM(const BLA::Matrix<4, 1> &quat) {
     float w = quat(0);
     float x = quat(1);
@@ -68,6 +68,12 @@ BLA::Matrix<3, 3> QuaternionUtils::quat2DCM(const BLA::Matrix<4, 1> &quat) {
     rot(2, 2) = w * w - x * x - y * y + z * z;
 
     return rot;
+}
+
+// TODO dont be lazy and write
+BLA::Matrix<3, 3> QuaternionUtils::quat2DCMInv(const BLA::Matrix<4, 1> &quat) {
+    // TODO one day rewrite it to make it more efficient
+    return ~quat2DCM(quat);
 }
 
 // Works
@@ -218,6 +224,30 @@ BLA::Matrix<3, 1> QuaternionUtils::ned2ecefVec(const BLA::Matrix<3, 1> &ned_meas
     return R_ET * ned_meas + launch_ecef;
 }
 
+// TODO test
+BLA::Matrix<3, 1> quat2RPY(const BLA::Matrix<4, 1> &p) {
+    // Not matlab, but from https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
+    // XYZ RPY
+    BLA::Matrix<3, 1> RPY = {0, 0, 0};
+
+    // roll (x-axis rotation)
+    double sinr_cosp = 2 * (p(0) * p(1) + p(2) * p(3));
+    double cosr_cosp = 1 - 2 * (p(1) * p(1) + p(2) * p(2));
+    RPY(0) = std::atan2(sinr_cosp, cosr_cosp);
+
+    // pitch (y-axis rotation)
+    double sinp = std::sqrt(1 + 2 * (p(0) * p(2) - p(1) * p(3)));
+    double cosp = std::sqrt(1 - 2 * (p(0) * p(2) - p(1) * p(3)));
+    RPY(1) = 2 * std::atan2(sinp, cosp) - M_PI / 2;
+
+    // yaw (z-axis rotation)
+    double siny_cosp = 2 * (p(0) * p(3) + p(1) * p(2));
+    double cosy_cosp = 1 - 2 * (p(2) * p(2) + p(3) * p(3));
+    RPY(2) = std::atan2(siny_cosp, cosy_cosp);
+
+    return RPY;
+}
+
 // Works
 BLA::Matrix<4, 1> QuaternionUtils::quatConjugate(const BLA::Matrix<4, 1> &p){
     BLA::Matrix<4, 1> quat;
@@ -254,6 +284,11 @@ BLA::Matrix<3, 1> QuaternionUtils::normal_i_ecef(const BLA::Matrix<3, 3> dcm_ned
     BLA::Matrix<3, 1> normal_ned = {0, 0, -9.8};
     return ~dcm_ned2ecef * normal_ned;
 }
+
+BLA::Matrix<3, 1> QuaternionUtils::sun_i_ecef(float t_utc) {
+    BLA::Matrix<3, 1> tmp = {0, 0, 0};
+}
+
 
 BLA::Matrix<3, 3> QuaternionUtils::vecs2mat(const BLA::Matrix<3, 1> v1, const BLA::Matrix<3, 1> v2, const BLA::Matrix<3, 1> v3) {
     // TODO eventually replace with just using hstack
@@ -294,11 +329,10 @@ BLA::Matrix<4, 1> QuaternionUtils::triad_BE(const BLA::Matrix<3, 1> v1_b, const 
 
 }
 
-BLA::Matrix<4, 1> QuaternionUtils::quest_BE(const BLA::Matrix<3, 100> local_vecs, const BLA::Matrix<3, 100> ref_vecs, BLA::Matrix<N, 1> weights) {
-    // Note: IF we have multiple vec measurements, there are tradeoffs between:
+BLA::Matrix<4, 1> esoq2_EB(const BLA::Matrix<3, 4> v_b, const BLA::Matrix<3, 4> v_i) {
     // Certifiable optimality, speed (microprocessor wise), determinism, and robustness to outliers
-    // Here I implement quest for 3+ vector meas, but read this and do research if other alg is desired:
-    // https://pdfs.semanticscholar.org/d30c/b21689c63660ca1de4c9c52ef3ae5b92e19b.pdf (chinese ppl unfortunately)
+    BLA::Matrix<4, 1> q_EB = {1, 0, 0, 0};
+    return q_EB;
 }
 
 // TODO test
@@ -433,6 +467,24 @@ float QuaternionUtils::cosd(float degs) {
 float QuaternionUtils::sind(float degs) {
     float pi = 3.141592653589;
     return sin(degs * (pi / 180.0f));
+}
+
+BLA::Matrix<3, 1> QuaternionUtils::combine_variances(const BLA::Matrix<3, 2> &A, const BLA::Matrix<2, 1> w) {
+    BLA::Matrix<3, 1> output_variance;
+    
+    for (int i = 0; i < 3; i++) {
+        output_variance(i) = w(0) * w(0) * A(i, 0) + w(1) * w(1) * A(i, 1);
+    }
+    return output_variance;
+}
+
+BLA::Matrix<3, 1> QuaternionUtils::fuse_measurements(const BLA::Matrix<3, 2> &A, const BLA::Matrix<2, 1> w) {
+    BLA::Matrix<3, 1> output_val;
+        
+    for (int i = 0; i < 3; i++) {
+        output_val(i) = w(0) * A(i, 0) + w(1) * A(i, 1);
+    }
+    return output_val;
 }
 
 
