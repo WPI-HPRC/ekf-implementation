@@ -72,10 +72,10 @@ static bool readSensorData(Sample &s) {
   s.icm_ay = accel.acceleration.y;
   s.icm_az = accel.acceleration.z;
 
-  s.icm_gx = gyro.gyro.x;
-  s.icm_gy = gyro.gyro.y;
-  s.icm_gz = gyro.gyro.z;
-
+  s.icm_gx = gyro.gyro.x / 1000.0f * (PI / 180.0f);
+  s.icm_gy = gyro.gyro.y / 1000.0f * (PI / 180.0f);
+  s.icm_gz = gyro.gyro.z / 1000.0f * (PI / 180.0f);
+  
   //gram asm data
   int32_t acc[3] = {0,0,0};
   int32_t gyr[3] = {0,0,0};
@@ -83,12 +83,12 @@ static bool readSensorData(Sample &s) {
   asmimu.Get_X_Axes(acc);
   asmimu.Get_G_Axes(gyr);
 
-  s.asm_ax = acc[0];
-  s.asm_ay = acc[1];
-  s.asm_az = acc[2];
-  s.asm_gx = gyr[0];
-  s.asm_gy = gyr[1];
-  s.asm_gz = gyr[2];
+  s.asm_ax = acc[0] / 1000.0f * (PI / 180.0f);
+  s.asm_ay = acc[1] / 1000.0f * (PI / 180.0f);
+  s.asm_az = acc[2] / 1000.0f * (PI / 180.0f);
+  s.asm_gx = gyr[0] / 1000.0f * (PI / 180.0f);
+  s.asm_gy = gyr[1] / 1000.0f * (PI / 180.0f);
+  s.asm_gz = gyr[2] / 1000.0f * (PI / 180.0f);
 
   return true;
 }

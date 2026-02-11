@@ -110,9 +110,9 @@ void StateEstimator::padLoop(BLA::Matrix<3, 1> accel, BLA::Matrix<3, 1> mag, BLA
 void StateEstimator::computeInitialOrientation() {
     if (sumMag(0, 0) == 0 && sumAccel(0, 0) == 0) {
         x(0) = 1.0f;
-        x(0) = 0.0f;
-        x(0) = 0.0f;
-        x(0) = 0.0f;
+        x(1) = 0.0f;
+        x(2) = 0.0f;
+        x(3) = 0.0f;
 
     } else {
         BLA::Matrix<3, 1> normal_i = normal_i_ecef(launch_dcmned2ecef);
