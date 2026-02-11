@@ -66,6 +66,15 @@ class StateEstimator {
     // Error Covariance Allocation TODO eventually
     BLA::Matrix<19, 19> P;
 
+    BLA::Matrix<20, 1> getState();
+    BLA::Matrix<19, 19> getP();
+    BLA::Matrix<3, 1> get_gyro_prev();
+    BLA::Matrix<3, 1> get_accel_prev();
+    BLA::Matrix<3,1> get_vel_prev();
+    BLA::Matrix<3,1> get_pos_prev();
+    BLA::Matrix<3,1> get_mag_prev();
+    BLA::Matrix<1,1> get_baro_prev();
+
     float curr_temp;
 
     /**
@@ -101,12 +110,14 @@ class StateEstimator {
 
     BLA::Matrix<3, 1> getVIMUAccel();
 
+    BLA::Matrix<5, 1> getSensorValues();
+
     // TODO figure out exactly how to implement this. 
     bool isEKFDiverging();
 
     float getGs();
     
-    private:
+  private:
     // Identity Matrices
     BLA::Matrix<20, 20> I_20 = BLA::Eye<20, 20>();
 	  BLA::Matrix<19, 19> I_19 = BLA::Eye<19, 19>();
@@ -122,8 +133,6 @@ class StateEstimator {
     BLA::Matrix<3,1> vel_prev = {0, 0, 0};
     BLA::Matrix<3,1> pos_prev = launch_ecef;
     BLA::Matrix<3,1> mag_prev = {0, 0, 0};
-    BLA::Matrix<3,1> gps_pos_prev = {0, 0, 0};
-    BLA::Matrix<3,1> gps_vel_prev = {0, 0, 0};
     BLA::Matrix<1,1> baro_prev = {0};
 
 

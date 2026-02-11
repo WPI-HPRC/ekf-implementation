@@ -63,10 +63,10 @@ namespace QuaternionUtils {
     BLA::Matrix<3, 1> normal_i_ecef(const BLA::Matrix<3, 3> dcm_ned2ecef);
 
     // One day...
-    BLA::Matrix<3, 1> sun_i_ecef(float t_utc);
+    // BLA::Matrix<3, 1> sun_i_ecef(float t_utc);
 
     // One day...
-    BLA::Matrix<2, 1> earth_horizon();
+    // BLA::Matrix<2, 1> earth_horizon();
 
     BLA::Matrix<3, 3> vecs2mat(const BLA::Matrix<3, 1> v1, const BLA::Matrix<3, 1> v2, const BLA::Matrix<3, 1> v3);
 
@@ -165,6 +165,17 @@ namespace QuaternionUtils {
         return ret;
     }
 
+    template <int N, int K>
+    BLA::Matrix<N * K, 1> vstackList(const std::array<BLA::Matrix<N, 1>, K> &vecs) {
+        BLA::Matrix<N * K, 1> ret;
+        for (int k = 0; k < K; k++) {
+            for (int i = 0; i < N; i++) {
+                ret(k * N + i, 0) = vecs[k](i, 0);
+            }
+        }
+        return ret;
+    }
+
     template <int M, int N, int N2>
     BLA::Matrix<M, N+N2> hstack(BLA::Matrix<M, N> first, BLA::Matrix<M, N2> second) {
         BLA::Matrix<M, N+N2> ret;
@@ -203,6 +214,19 @@ namespace QuaternionUtils {
             Serial.println("}");
         }
         Serial.println("}\n");
+    }
+
+    template <int M, int N>
+    BLA::Matrix<M * N, 1> matToVec(BLA::Matrix<M, N> matrix) {
+        BLA::Matrix<M * N, 1> ret;
+        ret.Fill(0);
+        for (int i = 0; i < M; i++) {
+            for (int i2 = 0; i2 < N; i2++) {
+                ret(M * i + i2, 1) = matrix(i, i2);
+            }
+        }
+        
+        return ret;
     }
 
 }

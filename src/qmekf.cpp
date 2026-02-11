@@ -9,6 +9,7 @@
 #include <array>
 
 using namespace QuaternionUtils;
+using namespace std;
 
 void StateEstimator::init(BLA::Matrix<3, 1> ECEF, float curr_time) {
     if (ECEF(0) != 0) {
@@ -56,6 +57,40 @@ void StateEstimator::init(BLA::Matrix<3, 1> ECEF, float curr_time) {
 
     lastTimes = {curr_time, curr_time, curr_time, curr_time, curr_time, curr_time};
 }
+
+BLA::Matrix<20, 1> StateEstimator::getState() {
+    return x;
+}
+
+BLA::Matrix<19, 19> StateEstimator::getP() {
+    return P;
+}
+
+BLA::Matrix<3, 1> StateEstimator::get_gyro_prev() {
+    return gyro_prev;
+}
+
+BLA::Matrix<3, 1> StateEstimator::get_accel_prev() {
+    return accel_prev;
+}
+
+BLA::Matrix<3, 1> StateEstimator::get_vel_prev() {
+    return vel_prev;
+}
+
+BLA::Matrix<3, 1> StateEstimator::get_pos_prev() {
+    return pos_prev;
+}
+
+BLA::Matrix<3, 1> StateEstimator::get_mag_prev() {
+    return mag_prev;
+}
+
+BLA::Matrix<1, 1> StateEstimator::get_baro_prev() {
+    return baro_prev;
+}
+
+
 
 void StateEstimator::padLoop(BLA::Matrix<3, 1> accel, BLA::Matrix<3, 1> mag, BLA::Matrix<3, 1> gps_pos) {
     sumAccel(0) = sumAccel(0) + accel(0);
@@ -119,7 +154,6 @@ BLA::Matrix<20, 1> StateEstimator::fastAccelProp(BLA::Matrix<3, 1> accel, float 
     lastTimes(1) = curr_time;
     return x;
 }
-
 
 BLA::Matrix<19, 19> StateEstimator::ekfPredict(float curr_time) {
     // TODO finish this. too lazy

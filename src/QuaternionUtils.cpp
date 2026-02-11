@@ -285,10 +285,6 @@ BLA::Matrix<3, 1> QuaternionUtils::normal_i_ecef(const BLA::Matrix<3, 3> dcm_ned
     return ~dcm_ned2ecef * normal_ned;
 }
 
-BLA::Matrix<3, 1> QuaternionUtils::sun_i_ecef(float t_utc) {
-    BLA::Matrix<3, 1> tmp = {0, 0, 0};
-}
-
 
 BLA::Matrix<3, 3> QuaternionUtils::vecs2mat(const BLA::Matrix<3, 1> v1, const BLA::Matrix<3, 1> v2, const BLA::Matrix<3, 1> v3) {
     // TODO eventually replace with just using hstack
