@@ -108,17 +108,25 @@ void StateEstimator::padLoop(BLA::Matrix<3, 1> accel, BLA::Matrix<3, 1> mag, BLA
 }
 
 void StateEstimator::computeInitialOrientation() {
-    BLA::Matrix<3, 1> normal_i = normal_i_ecef(launch_dcmned2ecef);
-    BLA::Matrix<3, 1> m_i = m_i_ecef(launch_dcmned2ecef);
-    BLA::Matrix<3, 1> normal_b = sumAccel / numLoop;
-    BLA::Matrix<3, 1> m_b = sumMag / numLoop;
-    BLA::Matrix initial_quat = triad_BE(normal_b, m_b, normal_i, m_i);
-    
-    
-    x(0) = initial_quat(0);
-    x(1) = initial_quat(1);
-    x(2) = initial_quat(2);
-    x(3) = initial_quat(3);
+    if (sumMag(0, 0) == 0 && sumAccel(0, 0) == 0) {
+        x(0) = 1.0f;
+        x(0) = 0.0f;
+        x(0) = 0.0f;
+        x(0) = 0.0f;
+
+    } else {
+        BLA::Matrix<3, 1> normal_i = normal_i_ecef(launch_dcmned2ecef);
+        BLA::Matrix<3, 1> m_i = m_i_ecef(launch_dcmned2ecef);
+        BLA::Matrix<3, 1> normal_b = sumAccel / numLoop;
+        BLA::Matrix<3, 1> m_b = sumMag / numLoop;
+        BLA::Matrix initial_quat = triad_BE(normal_b, m_b, normal_i, m_i);
+        
+        
+        x(0) = initial_quat(0);
+        x(1) = initial_quat(1);
+        x(2) = initial_quat(2);
+        x(3) = initial_quat(3);
+    }
 }
 
 BLA::Matrix<20, 1> StateEstimator::fastGyroProp(BLA::Matrix<3,1> gyro, float curr_time) {
