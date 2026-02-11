@@ -195,18 +195,20 @@ void loop() {
         if (seconds - lastCalcTimes(0, 0) >= runRates(0, 0)) {
             Sample s;
             readSensorData(s);
-            BLA::Matrix<3, 1> gyro = {s.asm_gx, s.asm_gy, s.asm_gz};
+            gyro = {s.asm_gx, s.asm_gy, s.asm_gz};
             estimator.fastGyroProp(gyro, seconds);
             estimator.ekfPredict(seconds);
+            
+            DBG.print("Gyro x: ");DBG.print(gyro(0, 0)); DBG.println(',');
+            DBG.print("Gyro y: ");DBG.print(gyro(1, 0)); DBG.println(',');
+            DBG.print("Gyro z: ");DBG.print(gyro(2, 0)); DBG.println(',');
         }
 
         DBG.print(index); DBG.print(',');  
         
         BLA::Matrix<20,1> state = estimator.getState();
 
-        DBG.print("Gyro x: ");DBG.print(gyro(0, 0)); DBG.println(',');
-        DBG.print("Gyro y: ");DBG.print(gyro(1, 0)); DBG.print(',');
-        DBG.print("Gyro z: ");DBG.print(gyro(2, 0)); DBG.print(',');
+
         /*
         for (int i = 0; i < 10; i++) {
             DBG.print(state(i, 0)); DBG.print(',');
