@@ -15,36 +15,36 @@ constexpr int q_w = 0;
 constexpr int q_x = 1;
 constexpr int q_y = 2;
 constexpr int q_z = 3;
-BLA::Matrix<4, 1> quat = {q_w, q_x, q_y, q_z};
-BLA::Matrix<3, 1> smallAngle = {q_w, q_x, q_y};
+inline BLA::Matrix<4, 1> quat = {q_w, q_x, q_y, q_z};
+inline BLA::Matrix<3, 1> smallAngle = {q_w, q_x, q_y};
 
 constexpr int v_x = 4;
 constexpr int v_y = 5;
 constexpr int v_z = 6;
-BLA::Matrix<3, 1> vel = {v_x, v_y, v_z};
+inline BLA::Matrix<3, 1> vel = {v_x, v_y, v_z};
 
 constexpr int p_x = 7;
 constexpr int p_y = 8;
 constexpr int p_z = 9;
-BLA::Matrix<3, 1> pos = {p_x, p_y, p_z};
+inline BLA::Matrix<3, 1> pos = {p_x, p_y, p_z};
 
 constexpr int gb_x = 10;
 constexpr int gb_y = 11;
 constexpr int gb_z = 12;
-BLA::Matrix<3, 1> gyroBias = {gb_x, gb_y, gb_z};
+inline BLA::Matrix<3, 1> gyroBias = {gb_x, gb_y, gb_z};
 
 constexpr int ab_x = 13;
 constexpr int ab_y = 14;
 constexpr int ab_z = 15;
-BLA::Matrix<3, 1> accelBias = {ab_x, ab_y, ab_z};
+inline BLA::Matrix<3, 1> accelBias = {ab_x, ab_y, ab_z};
 
 constexpr int mb_x = 16;
 constexpr int mb_y = 17;
 constexpr int mb_z = 18;
-BLA::Matrix<3, 1> magBias = {mb_x, mb_y, mb_z};
+inline BLA::Matrix<3, 1> magBias = {mb_x, mb_y, mb_z};
 
 constexpr int bb_z = 19;
-BLA::Matrix<1, 1> baroBias = {bb_z};
+inline BLA::Matrix<1, 1> baroBias = {bb_z};
 
 
 
