@@ -204,7 +204,7 @@ void loop() {
             DBG.print("Gyro z: ");DBG.print(gyro(2, 0)); DBG.println(',');
         }
 
-        DBG.print(index); DBG.print(',');  
+        DBG.print(index); DBG.println(',');  
         
         BLA::Matrix<20,1> state = estimator.getState();
 
@@ -214,6 +214,7 @@ void loop() {
             DBG.print(state(i, 0)); DBG.print(',');
         }
 
+            */
         DBG.print("Q1: "); DBG.print(state(0, 0)); DBG.println(',');
         DBG.print("Qx: "); DBG.print(state(1, 0)); DBG.println(',');
         DBG.print("Qy: "); DBG.print(state(2, 0)); DBG.println(',');
@@ -225,7 +226,6 @@ void loop() {
         DBG.print("Py: "); DBG.print(state(8, 0)); DBG.println(',');
         DBG.print("Pz: "); DBG.print(state(9, 0)); DBG.println(',');
 
-            */
 
         index++;
     }
