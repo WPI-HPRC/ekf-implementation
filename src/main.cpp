@@ -89,11 +89,27 @@ void loop() {
             estimator.ekfPredict(seconds);
         }
 
-        DBG.print(index); DBG.print(',');
+        DBG.print(index); DBG.print(',');  
+        
         BLA::Matrix<20,1> state = estimator.getState();
+        /*
         for (int i = 0; i < 10; i++) {
             DBG.print(state(i, 0)); DBG.print(',');
         }
+            */
+        DBG.print("Q1: "); DBG.print(state(0, 0)); DBG.println(',');
+        DBG.print("Qx: "); DBG.print(state(1, 0)); DBG.println(',');
+        DBG.print("Qy: "); DBG.print(state(2, 0)); DBG.println(',');
+        DBG.print("Qz: "); DBG.print(state(3, 0)); DBG.println(',');
+        DBG.print("Vx: "); DBG.print(state(4, 0)); DBG.println(',');
+        DBG.print("Vy: "); DBG.print(state(5, 0)); DBG.println(',');
+        DBG.print("Vz: "); DBG.print(state(6, 0)); DBG.println(',');
+        DBG.print("Px: "); DBG.print(state(7, 0)); DBG.println(',');
+        DBG.print("Py: "); DBG.print(state(8, 0)); DBG.println(',');
+        DBG.print("Pz: "); DBG.print(state(9, 0)); DBG.println(',');
+
+
+
         index++;
     }
     // Poll each sensor
