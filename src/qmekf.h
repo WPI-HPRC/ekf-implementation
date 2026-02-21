@@ -43,8 +43,9 @@ constexpr int mb_y = 17;
 constexpr int mb_z = 18;
 inline BLA::Matrix<3, 1> magBias = {mb_x, mb_y, mb_z};
 
-constexpr int bb_z = 19;
-inline BLA::Matrix<1, 1> baroBias = {bb_z};
+constexpr int bb_t = 19;
+constexpr int bb_p = 20;
+inline BLA::Matrix<2, 1> baroBias = {bb_t, bb_p};
 
 
 
@@ -64,10 +65,10 @@ class StateEstimator {
     BLA::Matrix<20, 1> x;
 
     // Error Covariance Allocation TODO eventually
-    BLA::Matrix<19, 19> P;
+    BLA::Matrix<20, 20> P;
 
     BLA::Matrix<20, 1> getState();
-    BLA::Matrix<19, 19> getP();
+    BLA::Matrix<20, 20> getP();
     BLA::Matrix<3, 1> get_gyro_prev();
     BLA::Matrix<3, 1> get_accel_prev();
     BLA::Matrix<3,1> get_vel_prev();
@@ -77,19 +78,13 @@ class StateEstimator {
 
     float curr_temp;
 
-    /**
-     * @name init
-     * @author @frostydev99
-     * @param x_0 - Initial State
-     * @param dt  - Discrete time step
-     */
     void init(BLA::Matrix<3, 1> ECEF, float curr_time);
     void padLoop(BLA::Matrix<3, 1> accel, BLA::Matrix<3, 1> mag, BLA::Matrix<3, 1> gps_pos);
     void computeInitialOrientation();
 
     BLA::Matrix<20, 1> fastGyroProp(BLA::Matrix<3,1> gyro, float curr_time);
     BLA::Matrix<20, 1> fastAccelProp(BLA::Matrix<3,1> accel, float curr_time);
-    BLA::Matrix<19, 19> ekfPredict(float curr_time);
+    BLA::Matrix<20, 20> ekfPredict(float curr_time);
 
     // Update Functions
     BLA::Matrix<20, 1> runAccelUpdate(BLA::Matrix<3, 1> a_b, float curr_time);
@@ -100,7 +95,7 @@ class StateEstimator {
     float getTemp();
 
     template<int rows>
-    BLA::Matrix<20, 1> ekfCalcErrorInject(BLA::Matrix<rows, 1> &sens_reading, BLA::Matrix<rows, 19> H, BLA::Matrix<rows, 1> h, BLA::Matrix<rows, rows> R);
+    BLA::Matrix<20, 1> ekfCalcErrorInject(BLA::Matrix<rows, 1> &sens_reading, BLA::Matrix<rows, 20> H, BLA::Matrix<rows, 1> h, BLA::Matrix<rows, rows> R);
 
     BLA::Matrix<4, 1> getNEDOrientation(BLA::Matrix<3, 3> &dcm_ned2ecef);
     

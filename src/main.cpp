@@ -236,7 +236,7 @@ void setup() {
 }
 
 void loop() {
-
+    /*
     if (state == 0) {
         if (get_elapsed_seconds() > 5) {
             state = 1;
@@ -247,13 +247,16 @@ void loop() {
 
         state = 2;
     } else if (state == 2) {
+     */
         static uint32_t index = 0;
         float seconds = get_elapsed_seconds();
         if (seconds - lastCalcTimes(0, 0) >= runRates(0, 0)) {
             Sample s;
             readSensorData(s);
             gyro = {s.asm_gx, s.asm_gy, s.asm_gz};
+            accel = {s.asm_ax, s.asm_ay, s.asm_az};
             estimator.fastGyroProp(gyro, seconds);
+            estimator.fastAccelProp(accel, seconds);
             //estimator.ekfPredict(seconds);
             
             //DBG.print("Gyro x: ");DBG.print(gyro(0, 0)); DBG.println(',');
@@ -270,18 +273,18 @@ void loop() {
         for (int i = 0; i < 10; i++) {
             DBG.print(state(i, 0)); DBG.print(',');
         }
-
-            */
-        //DBG.print(get_elapsed_seconds()); DBG.print(',');
-        //DBG.print("Q1: ");
-       // DBG.print(state(0, 0)); DBG.print(',');
-        //DBG.print("Qx: ");
-        //DBG.print(state(1, 0)); DBG.print(',');
-        //DBG.print("Qy: ");
-        //DBG.print(state(2, 0)); DBG.print(',');
-        //DBG.print("Qz: ");
-        //DBG.print(state(3, 0)); DBG.println(',');
+*/
         /*
+        DBG.print(get_elapsed_seconds()); DBG.print(',');
+        DBG.print("Q1: ");
+        DBG.print(state(0, 0)); DBG.print(',');
+        DBG.print("Qx: ");
+        DBG.print(state(1, 0)); DBG.print(',');
+        DBG.print("Qy: ");
+        DBG.print(state(2, 0)); DBG.print(',');
+        DBG.print("Qz: ");
+        DBG.print(state(3, 0)); DBG.println(',');
+        
         DBG.print("Vx: "); DBG.print(state(4, 0)); DBG.println(',');
         DBG.print("Vy: "); DBG.print(state(5, 0)); DBG.println(',');
         DBG.print("Vz: "); DBG.print(state(6, 0)); DBG.println(',');
@@ -291,7 +294,7 @@ void loop() {
         */
 
         index++;
-    }
+    //}
     // Poll each sensor
     // Feed to EKF
     // Print quat, vel, pos, biases even

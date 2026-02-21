@@ -22,9 +22,9 @@ void StateEstimator::init(BLA::Matrix<3, 1> ECEF, float curr_time) {
         launch_ecef = ECEF;
     }
 
-    x = {1, 0, 0, 0,
-            0, 0, 0,
-            launch_ecef(0), launch_ecef(1), launch_ecef(2),
+    x = {1.0f, 0.0f, 0.0f, 0.0f,
+            0.0f, 0.0f, 0.0f,
+            0.0f, 0.0f, 0.0f,
             vimu_const::gyro_bias(0), vimu_const::gyro_bias(0), vimu_const::gyro_bias(0),
             vimu_const::accel_bias(0), vimu_const::accel_bias(1), vimu_const::accel_bias(2),
             icm20948_const::mag_bias(0), icm20948_const::mag_bias(1), icm20948_const::mag_bias(2),
@@ -68,7 +68,7 @@ BLA::Matrix<20, 1> StateEstimator::getState() {
     return x;
 }
 
-BLA::Matrix<19, 19> StateEstimator::getP() {
+BLA::Matrix<20, 20> StateEstimator::getP() {
     return P;
 }
 
@@ -141,29 +141,19 @@ BLA::Matrix<20, 1> StateEstimator::fastGyroProp(BLA::Matrix<3,1> gyro, float cur
     
     float dt2 = dt/2.0f;
 
-
-
     BLA::Matrix<4, 1> p_q = extractSub(x, QMEKFInds::quat);
     // TODO combine gyro through vimu
 
     BLA::Matrix<3, 1> unbiased_gyro = gyro - extractSub(x, QMEKFInds::gyroBias);
-    //BLA::Matrix<4, 1> new_q = quatMultiply(extractSub(x, QMEKFInds::quat), rotVec2dQuat(unbiased_gyro * dt));
+    // OLD METHOD BROKEN BLA::Matrix<4, 1> new_q = quatMultiply(extractSub(x, QMEKFInds::quat), rotVec2dQuat(unbiased_gyro * dt));
 
-    BLA::Matrix<4, 1> new_q = (
+    BLA::Matrix<4, 1> new_q = {
         (p_q(0) - dt2*(unbiased_gyro(0))*p_q(1) - dt2*(unbiased_gyro(1))*p_q(2) - dt2*(unbiased_gyro(2))*p_q(3)),
         (p_q(1) + dt2*(unbiased_gyro(0))*p_q(0) - dt2*(unbiased_gyro(1))*p_q(3) + dt2*(unbiased_gyro(2))*p_q(2)),
         (p_q(2) + dt2*(unbiased_gyro(0))*p_q(3) + dt2*(unbiased_gyro(1))*p_q(0) - dt2*(unbiased_gyro(2))*p_q(1)),
         (p_q(3) - dt2*(unbiased_gyro(0))*p_q(2) + dt2*(unbiased_gyro(1))*p_q(1) + dt2*(unbiased_gyro(2))*p_q(0))
-    );
-
+    };
     new_q = new_q / BLA::Norm(new_q);
-
-    DBG.println(dt2, 5);
-
-    DBG.print(new_q(0)); DBG.print(",");
-    DBG.print(new_q(1)); DBG.print(",");
-    DBG.print(new_q(2)); DBG.print(",");
-    DBG.println(new_q(3));
     x = setSub(x, QMEKFInds::quat, new_q);
     gyro_prev = unbiased_gyro;
     lastTimes(0) = curr_time;
@@ -177,9 +167,11 @@ BLA::Matrix<20, 1> StateEstimator::fastAccelProp(BLA::Matrix<3, 1> accel, float 
     // TODO combine accel through vimu
 
     BLA::Matrix<3, 1> unbiased_accel = accel - extractSub(x, QMEKFInds::accelBias);
+    //DBG.print("unbiased accel: "); DBG.println(unbiased_accel);
     BLA::Matrix<3, 3> q_conj_dcm = quat2DCM(quatConjugate(extractSub(x, QMEKFInds::quat)));
-    BLA::Matrix<3, 1> v = ((q_conj_dcm * unbiased_accel + q_conj_dcm * accel_prev) / 2.0f) + g_i_ecef(launch_dcmned2ecef) * dt + vel_prev;
-    BLA::Matrix<3, 1> p = ((v + vel_prev) / 2.0f) * dt + pos_prev;
+    BLA::Matrix<3, 1> v = {((q_conj_dcm * unbiased_accel + q_conj_dcm * accel_prev) / 2.0f) + g_i_ecef(launch_dcmned2ecef) * dt + vel_prev};
+    DBG.print("v: "); DBG.println(v);
+    BLA::Matrix<3, 1> p = {((v + vel_prev) / 2.0f) * dt + pos_prev};
     x = setSub(x, QMEKFInds::vel, v);
     x = setSub(x, QMEKFInds::pos, p);
 
@@ -190,7 +182,7 @@ BLA::Matrix<20, 1> StateEstimator::fastAccelProp(BLA::Matrix<3, 1> accel, float 
     return x;
 }
 
-BLA::Matrix<19, 19> StateEstimator::ekfPredict(float curr_time) {
+BLA::Matrix<20, 20> StateEstimator::ekfPredict(float curr_time) {
     // TODO finish this. too lazy
     BLA::Matrix<4, 1> att_last_relevant_times = {0, 1, 3, 4};
     BLA::Matrix<4, 1> pv_last_relevant_times = {1, 4, 5};
@@ -203,7 +195,7 @@ BLA::Matrix<19, 19> StateEstimator::ekfPredict(float curr_time) {
 
     BLA::Matrix<3, 3> q_conj_dcm = quat2DCM(quatConjugate(extractSub(x, QMEKFInds::quat)));
 
-    BLA::Matrix<19, 19> F;
+    BLA::Matrix<20, 20> F;
     F.Fill(0);
 
     //Row 1 - 3
@@ -217,63 +209,76 @@ BLA::Matrix<19, 19> StateEstimator::ekfPredict(float curr_time) {
     //Row 7 - 9
     F.Submatrix<3, 3>(QMEKFInds::p_x - 1, QMEKFInds::v_x - 1) = I_3;
     
-    BLA::Matrix<19, 19> phi;
+    BLA::Matrix<20, 20> phi;
     phi.Fill(0);
 
-    phi = I_19 + (F * pv_dt) + (0.5f * F * F * float(pow(pv_dt, 2))); // I was hoping to split up the dt. Not that deep tho
+    phi = I_20 + (F * pv_dt) + (0.5f * F * F * float(pow(pv_dt, 2))); // I was hoping to split up the dt. Not that deep tho
 
-    BLA::Matrix<19, 19> phi_t = ~phi;
+    BLA::Matrix<20, 20> phi_t = ~phi;
 
     // Process noise
-    BLA::Matrix<19, 19> Q_d;
+    BLA::Matrix<20, 20> Q_d;
     Q_d.Fill(0);
 
-    // TODO this part eventually
-    // BLA::Matrix<3, 3> gyro_var_diag;
-    // gyro_var_diag.Fill(0);
-    // gyro_var_diag(0, 0) = QMEKFInds::gyro_var;
-    // gyro_var_diag(1, 1) = QMEKFInds::gyro_var;
-    // gyro_var_diag(2, 2) = QMEKFInds::gyro_var;
 
-    // BLA::Matrix<3, 3> gyro_bias_var_diag;
-    // gyro_bias_var_diag.Fill(0);
-    // gyro_bias_var_diag(0, 0) = QMEKFInds::gyro_bias_var;
-    // gyro_bias_var_diag(1, 1) = QMEKFInds::gyro_bias_var;
-    // gyro_bias_var_diag(2, 2) = QMEKFInds::gyro_bias_var;
+    //Sorry random numbers theyre in the output.txt file from the allan variance tests
+    BLA::Matrix<3, 3> gyro_var_diag;
+    gyro_var_diag.Fill(0);
+    gyro_var_diag(0, 0) = 14.00553 / 1000.0f * (PI / 180.0f) / sqrtf(pv_dt);
+    gyro_var_diag(1, 1) = 1124.893 / 1000.0f * (PI / 180.0f) / sqrtf(pv_dt);
+    gyro_var_diag(2, 2) = 6.534220 / 1000.0f * (PI / 180.0f) / sqrtf(pv_dt);
 
-    // BLA::Matrix<3, 3> accel_var_diag;
-    // BLA::Matrix<3, 3> accel_bias_var_diag;
-    // accel_bias_var_diag.Fill(0);
-    // accel_bias_var_diag(0, 0) = QMEKFInds::accel_bias_var;
-    // accel_bias_var_diag(1, 1) = QMEKFInds::accel_bias_var;
-    // accel_bias_var_diag(2, 2) = QMEKFInds::accel_bias_var;
+    BLA::Matrix<3, 3> gyro_bias_var_diag;
+    gyro_bias_var_diag.Fill(0);
+    gyro_bias_var_diag(0, 0) = 0.1152665 / 1000.0f * (PI / 180.0f);
+    gyro_bias_var_diag(1, 1) = 0.1621635 / 1000.0f * (PI / 180.0f);
+    gyro_bias_var_diag(2, 2) = 0.09894897 / 1000.0f * (PI / 180.0f);
 
-    // BLA::Matrix<3, 3> mag_var_diag;
-    // BLA::Matrix<1, 1> baro_var_diag;
+    BLA::Matrix<3, 3> accel_var_diag;
+    accel_var_diag.Fill(0);
+    accel_var_diag(0, 0) = 103.2008 * 0.00980665f / sqrtf(pv_dt);
+    accel_var_diag(1, 1) = 0.1732320 * 0.00980665f / sqrtf(pv_dt);
+    accel_var_diag(2, 2) = 0.2295548 * 0.00980665f / sqrtf(pv_dt);
 
-    // Q_d.Submatrix<3, 3>(QMEKFInds::q_w, QMEKFInds::q_w) = (gyro_var_diag * dt) + (gyro_bias_var_diag * float((pow(dt, 3) / 10)));
-    // Q_d.Submatrix<3, 3>(QMEKFInds::q_w, 9) = -1.0f * gyro_bias_var_diag * float((pow(dt, 2) / 2));
+    BLA::Matrix<3, 3> accel_bias_var_diag;
+    accel_bias_var_diag.Fill(0);
+    accel_bias_var_diag(0, 0) = 0.01474176 * 0.00980665f;
+    accel_bias_var_diag(1, 1) = 0.03503381 * 0.00980665f;
+    accel_bias_var_diag(2, 2) = 0.0043195624 * 0.00980665f;
 
-    // Q_d.Submatrix<3 ,3>(3, 3) = R_grav_diag * dt + accel_bias_var_diag * float((pow(dt, 3) / 3));
-    // Q_d.Submatrix<3, 3>(3, 6) = accel_bias_var_diag * float((pow(dt ,4) / 8.0)) + R_grav_diag * float((pow(dt, 2) / 2.0));
-    // Q_d.Submatrix<3, 3>(3, 10) = -1.0f * accel_bias_var_diag * float((pow(dt, 2) / 2.0));
+    BLA::Matrix<3, 3> mag_bias_var_diag;
+    mag_bias_var_diag.Fill(0);
+    mag_bias_var_diag(0, 0) = 0.008301463f;
+    mag_bias_var_diag(1, 1) = 0.003226824f;
+    mag_bias_var_diag(2, 2) = 0.01745155f;
 
-    // Q_d.Submatrix<3, 3>(6, 3) = R_grav_diag * float((pow(dt, 2) / 2)) + accel_bias_var_diag * float((pow(dt, 4) / 8.0));
-    // Q_d.Submatrix<3, 3>(6, 6) = R_grav_diag * float((pow(dt, 3) / 3.0)) + accel_bias_var_diag * float((pow(dt, 5) / 20.0));
-    // Q_d.Submatrix<3, 3>(6, 10) = -1.0f * accel_bias_var_diag * float((pow(dt, 3) / 6.0));
+    BLA::Matrix<2, 2> baro_bias_var_diag;
+    baro_bias_var_diag.Fill(0);
+    baro_bias_var_diag(0, 0) = 0.01243823;
+    baro_bias_var_diag(1, 1) = 0.008426440f;
 
-    // Q_d.Submatrix<3, 3>(9, 0) = -1.0f * gyro_bias_var_diag * float((pow(dt, 2) / 2.0));
-    // Q_d.Submatrix<3, 3>(9, 9) = gyro_bias_var_diag * float((pow(dt, 2) / 2.0));
+    Q_d.Submatrix<3, 3>(QMEKFInds::q_w, QMEKFInds::q_w) = (gyro_var_diag * att_dt) + (gyro_bias_var_diag * float((pow(att_dt, 3) / 10)));
+    Q_d.Submatrix<3, 3>(QMEKFInds::q_w, 9) = -1.0f * gyro_bias_var_diag * float((pow(att_dt, 2) / 2));
 
-    // Q_d.Submatrix<3, 3>(12, 3) = -1.0f * accel_bias_var_diag * float((pow(dt, 2) / 2.0));
-    // Q_d.Submatrix<3, 3>(12, 6) = -1.0f * accel_bias_var_diag * float((pow(dt, 2) / 2.0));
-    // Q_d.Submatrix<3, 3>(12, 12) = accel_bias_var_diag * dt;
+    Q_d.Submatrix<3 ,3>(3, 3) = accel_var_diag * pv_dt + accel_bias_var_diag * float((pow(pv_dt, 3) / 3));
+    Q_d.Submatrix<3, 3>(3, 6) = accel_bias_var_diag * float((pow(pv_dt ,4) / 8.0)) + accel_var_diag * float((pow(pv_dt, 2) / 2.0));
+    Q_d.Submatrix<3, 3>(3, 10) = -1.0f * accel_bias_var_diag * float((pow(pv_dt, 2) / 2.0));
 
-    // Q_d(15, 15) = QMEKFInds::mag_bias_var * dt;
+    Q_d.Submatrix<3, 3>(6, 3) = accel_var_diag * float((pow(pv_dt, 2) / 2)) + accel_bias_var_diag * float((pow(pv_dt, 4) / 8.0));
+    Q_d.Submatrix<3, 3>(6, 6) = accel_var_diag * float((pow(pv_dt, 3) / 3.0)) + accel_bias_var_diag * float((pow(pv_dt, 5) / 20.0));
+    Q_d.Submatrix<3, 3>(6, 10) = -1.0f * accel_bias_var_diag * float((pow(pv_dt, 3) / 6.0));
 
-    // Q_d(18, 18) = QMEKFInds::baro_bias_var * dt;
+    Q_d.Submatrix<3, 3>(9, 0) = -1.0f * gyro_bias_var_diag * float((pow(att_dt, 2) / 2.0));
+    Q_d.Submatrix<3, 3>(9, 9) = gyro_bias_var_diag * float((pow(att_dt, 2) / 2.0));
 
-    // BLA::Matrix<19, 19> P;
+    Q_d.Submatrix<3, 3>(12, 3) = -1.0f * accel_bias_var_diag * float((pow(pv_dt, 2) / 2.0));
+    Q_d.Submatrix<3, 3>(12, 6) = -1.0f * accel_bias_var_diag * float((pow(pv_dt, 2) / 2.0));
+    Q_d.Submatrix<3, 3>(12, 12) = accel_bias_var_diag * pv_dt;
+
+    Q_d.Submatrix<3, 3>(15, 15) = mag_bias_var_diag * pv_dt;
+    Q_d.Submatrix<2, 2>(18, 18) = baro_bias_var_diag * pv_dt;
+
+    BLA::Matrix<20, 20> P;
     
     P = phi * P * phi_t + Q_d;
 
@@ -288,7 +293,7 @@ BLA::Matrix<20, 1> StateEstimator::runAccelUpdate(BLA::Matrix<3, 1> a_b, float c
 
     BLA::Matrix<3, 1> h_accel = quat2DCM(q) * normal_i_ecef(launch_dcmned2ecef);
 
-    BLA::Matrix<3, 19> H_accel;
+    BLA::Matrix<3, 20> H_accel;
     H_accel.Fill(0);
     H_accel.Submatrix<3, 3>(0, 0) = skewSymmetric(h_accel);
     H_accel.Submatrix<3, 3>(0, QMEKFInds::ab_x - 1) = I_3;
@@ -306,7 +311,7 @@ BLA::Matrix<20, 1> StateEstimator::runMagUpdate(BLA::Matrix<3, 1> m_b, float cur
 
     BLA::Matrix<3, 1> h_mag = quat2DCM(q) * m_i_ecef(launch_dcmned2ecef);
 
-    BLA::Matrix<3, 19> H_mag;
+    BLA::Matrix<3, 20> H_mag;
     H_mag.Fill(0);
     H_mag.Submatrix<3, 3>(0, 0) = skewSymmetric(h_mag);
     H_mag.Submatrix<3, 3>(0, QMEKFInds::mb_x - 1) = I_3;
@@ -327,7 +332,7 @@ BLA::Matrix<20, 1> StateEstimator::runGPSUpdate(BLA::Matrix<3, 1> gpsPos, BLA::M
         BLA::Matrix<3, 1> h_vi = quat2DCM(quatConjugate(q)) * v_b;
         BLA::Matrix<9, 1> h_gps = vstack(extractSub(x, vstack(QMEKFInds::vel, QMEKFInds::pos)), extractSub(x, QMEKFInds::vel));
         
-        BLA::Matrix<9, 19> H_gps;
+        BLA::Matrix<9, 20> H_gps;
         H_gps.Fill(0);
         H_gps.Submatrix<3, 3>(0, QMEKFInds::v_x - 1) = I_3;
         H_gps.Submatrix<3, 3>(3, QMEKFInds::p_x - 1) = I_3;
@@ -338,7 +343,7 @@ BLA::Matrix<20, 1> StateEstimator::runGPSUpdate(BLA::Matrix<3, 1> gpsPos, BLA::M
         return ekfCalcErrorInject(combined_sens, H_gps, h_gps, R);
     } else {
         BLA::Matrix<6, 1> combined_sens = vstack(gpsVel, gpsPos);
-        BLA::Matrix<6, 19> H_gps;
+        BLA::Matrix<6, 20> H_gps;
         H_gps.Fill(0);
         H_gps.Submatrix<3, 3>(0, QMEKFInds::v_x - 1) = I_3;
         H_gps.Submatrix<3, 3>(3, QMEKFInds::p_x - 1) = I_3;
@@ -361,10 +366,11 @@ BLA::Matrix<20, 1> StateEstimator::runBaroUpdate(BLA::Matrix<1, 1> baro, float c
     BLA::Matrix<3, 1> dh_decef = {cosd(lla(0)) * cosd(lla(1)), cosd(lla(0)) * sind(lla(1)), sind(lla(0))};
     BLA::Matrix<3, 1> dP_decef = dP_dh * dh_decef;
 
-    BLA::Matrix<1, 19> H_baro;
+    BLA::Matrix<1, 20> H_baro;
     H_baro.Fill(0);
     H_baro.Submatrix<1, 3>(0, QMEKFInds::p_x - 1) = ~dP_decef;
     H_baro(0, 18) = 1.0f;
+    H_baro(0, 19) = 1.0f;
 
     BLA::Matrix<1, 1> R = lps22_const::baro_var;
 
@@ -381,16 +387,16 @@ float StateEstimator::getTemp() {
 }
 
 template<int rows>
-BLA::Matrix<20, 1> StateEstimator::ekfCalcErrorInject(BLA::Matrix<rows, 1> &sens_reading, BLA::Matrix<rows, 19> H, BLA::Matrix<rows, 1> h, BLA::Matrix<rows, rows> R) {
+BLA::Matrix<20, 1> StateEstimator::ekfCalcErrorInject(BLA::Matrix<rows, 1> &sens_reading, BLA::Matrix<rows, 20> H, BLA::Matrix<rows, 1> h, BLA::Matrix<rows, rows> R) {
     BLA::Matrix<rows, 1> residual = sens_reading - h;
     
     BLA::Matrix<rows, rows> S;
-    BLA::Matrix<19, rows> K;
-    BLA::Matrix<19, rows> H_t = ~H;
+    BLA::Matrix<20, rows> K;
+    BLA::Matrix<20, rows> H_t = ~H;
     
     S = H * P * H_t + R;
     K = (P * H_t) * BLA::Inverse(S);
-    BLA::Matrix<19, 1> postErrorState = K * residual;
+    BLA::Matrix<20, 1> postErrorState = K * residual;
     
     // Inject error angles into quat
     BLA::Matrix<3, 1> alpha = extractSub(postErrorState, QMEKFInds::smallAngle);
@@ -418,6 +424,7 @@ BLA::Matrix<20, 1> StateEstimator::ekfCalcErrorInject(BLA::Matrix<rows, 1> &sens
     x(17) += postErrorState(16);
     x(18) += postErrorState(17);
     x(19) += postErrorState(18);
+    x(20) += postErrorState(19);
     
     return x;
 }
