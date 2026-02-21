@@ -1,0 +1,3 @@
+[submodule "lib/qmekf"]
+	path = lib/qmekf
+	url = https://github.com/WPI-HPRC/qmekf-lib.git
