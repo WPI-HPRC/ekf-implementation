@@ -23,6 +23,12 @@ Adafruit_ICM20948 icm;
 //ICM ic2 address
 static constexpr uint8_t ICM_ADDR = 0x68;
 
+#include <Adafruit_LPS2X.h>
+Adafruit_LPS22 lps;
+
+#include <SparkFun_u-blox_GNSS_v3.h>
+SFE_UBLOX_GNSS GPS;
+
 //ASM libs
 #include <ASM330LHHSensor.h>
 
@@ -32,19 +38,41 @@ static ASM330LHHSensor asmimu(&Wire);
 using namespace QuaternionUtils;
 // This line is a game changer
 
+struct MAX10SData {
+    float lat;
+    float lon;
+    float ecefX;
+    float ecefY;
+    float ecefZ;
+    float altMSL;
+    float altEllipsoid;
+    int32_t velN;
+    int32_t velE;
+    int32_t velD;
+    uint32_t epochTime;
+    uint8_t satellites;
+    uint8_t gpsLockType;
+};
 
+//Sample struct
 struct Sample {
   float icm_ax, icm_ay, icm_az;
   float icm_gx, icm_gy, icm_gz;
-  int32_t asm_ax, asm_ay, asm_az;
-  int32_t asm_gx, asm_gy, asm_gz;
+  float icm_mx, icm_my, icm_mz;
+  float asm_ax, asm_ay, asm_az;
+  float asm_gx, asm_gy, asm_gz;
+  float lps_p, lps_t;
+  MAX10SData max10s;
 };
 
 static inline void zeroSample(Sample &s) {
-  s.icm_ax = s.icm_ay = s.icm_az = 0;
-  s.icm_gx = s.icm_gy = s.icm_gz = 0;
-  s.asm_ax = s.asm_ay = s.asm_az = 0;
-  s.asm_gx = s.asm_gy = s.asm_gz = 0;
+  s.icm_ax = s.icm_ay = s.icm_az = 0.0f;
+  s.icm_gx = s.icm_gy = s.icm_gz = 0.0f;
+  s.icm_mx = s.icm_my = s.icm_mz = 0.0f;
+  s.asm_ax = s.asm_ay = s.asm_az = 0.0f;
+  s.asm_gx = s.asm_gy = s.asm_gz = 0.0f;
+  s.lps_p = s.lps_t = 0.0f;
+  s.max10s = {0};
 }
 
 struct State {
@@ -59,23 +87,51 @@ BLA::Matrix<6, 1> lastCalcTimes = {0, 0, 0, 0, 0, 0};
 // Gyro, Accel int, Accel up, mag up, gps up, baro up
 BLA::Matrix<6, 1> runRates = {0.025, 0.03, 0.03, 0.5, 1, 1};
 
-
 //Read sensor data
 static bool readSensorData(Sample &s) {
   zeroSample(s);
+
+  //grab gps data
+  s.max10s.lat = (float)GPS.getLatitude();
+  s.max10s.lon = (float)GPS.getLongitude();
+  s.max10s.velN = GPS.getNedNorthVel();
+  s.max10s.velE = GPS.getNedEastVel();
+  s.max10s.velD = GPS.getNedDownVel();
+    /** 
+  s.max10s.ecefX = (float)GPS.getHighResECEFX() * 0.01f;
+  s.max10s.ecefY = (float)GPS.getHighResECEFY() * 0.01f;
+  s.max10s.ecefZ = (float)GPS.getHighResECEFZ() * 0.01f;
+  s.max10s.altMSL = (float)GPS.getAltitudeMSL() / 1000.0f;
+  s.max10s.altEllipsoid = (float)GPS.getAltitude() / 1000.0f;
+  s.max10s.epochTime = GPS.getUnixEpoch();
+  s.max10s.satellites = GPS.getSIV();
+  s.max10s.gpsLockType = GPS.getFixType();  
+  */
+
+
+
+  //grab lps data
+  sensors_event_t pressure, lps_temp;
+  lps.getEvent(&pressure, &lps_temp);
+  s.lps_p = pressure.pressure;
+  s.lps_t = lps_temp.temperature;
 
   //grab icm data
   sensors_event_t accel, gyro, temp, mag;
   icm.getEvent(&accel, &gyro, &temp, &mag);
 
-  s.icm_ax = accel.acceleration.x;
-  s.icm_ay = accel.acceleration.y;
-  s.icm_az = accel.acceleration.z;
+  s.icm_ax = accel.acceleration.x * 0.980665f;
+  s.icm_ay = accel.acceleration.y * 0.980665f;
+  s.icm_az = accel.acceleration.z * 0.980665f;
 
-  s.icm_gx = gyro.gyro.x / 1000.0f * (PI / 180.0f);
-  s.icm_gy = gyro.gyro.y / 1000.0f * (PI / 180.0f);
-  s.icm_gz = gyro.gyro.z / 1000.0f * (PI / 180.0f);
-  
+  s.icm_gx = gyro.gyro.x * (PI / 180.0f);
+  s.icm_gy = gyro.gyro.y * (PI / 180.0f);
+  s.icm_gz = gyro.gyro.z * (PI / 180.0f);
+
+  s.icm_mx = mag.magnetic.x;
+  s.icm_my = mag.magnetic.y;
+  s.icm_mz = mag.magnetic.z;
+
   //gram asm data
   int32_t acc[3] = {0,0,0};
   int32_t gyr[3] = {0,0,0};
@@ -83,9 +139,9 @@ static bool readSensorData(Sample &s) {
   asmimu.Get_X_Axes(acc);
   asmimu.Get_G_Axes(gyr);
 
-  s.asm_ax = acc[0] / 1000.0f * (PI / 180.0f);
-  s.asm_ay = acc[1] / 1000.0f * (PI / 180.0f);
-  s.asm_az = acc[2] / 1000.0f * (PI / 180.0f);
+  s.asm_ax = acc[0] * 0.00980665f;
+  s.asm_ay = acc[1] * 0.00980665f;
+  s.asm_az = acc[2] * 0.00980665f;
   s.asm_gx = gyr[0] / 1000.0f * (PI / 180.0f);
   s.asm_gy = gyr[1] / 1000.0f * (PI / 180.0f);
   s.asm_gz = gyr[2] / 1000.0f * (PI / 180.0f);
@@ -94,27 +150,11 @@ static bool readSensorData(Sample &s) {
 }
 
 BLA::Matrix<3, 1> gyro = {0, 0, 0};
-/*
-BLA::Matrix<3, 1> get_gyro() {
-    BLA::Matrix<3, 1> gyro = {0, 0, 0};
-    return gyro;
-}
+BLA::Matrix<3, 1> accel = {0, 0, 0};
+BLA::Matrix<3, 1> mag = {0, 0, 0};
+BLA::Matrix<2, 1> gps_pos = {0, 0};
+BLA::Matrix<3, 1> gps_vel = {0, 0, 0};
 
-BLA::Matrix<3, 1> get_accel() {
-    BLA::Matrix<3, 1> accel = {0, 0, 0};
-    return accel;
-}
-
-BLA::Matrix<3, 1> get_mag() {
-    BLA::Matrix<3, 1> mag = {0, 0, 0};
-    return mag;
-}
-
-BLA::Matrix<3, 1> get_gps_pos() {
-    BLA::Matrix<3, 1> gps_pos = {0, 0, 0};
-    return gps_pos;
-}
-*/
 float get_elapsed_seconds() {
     return millis() / 1000.0f;
 }
@@ -124,12 +164,32 @@ void setup() {
     DBG.begin(115200);
     delay(6000);
 
+
     //I2C
     Wire.setSDA(PB_7);
     Wire.setSCL(PB_6);
     Wire.begin();
     Wire.setClock(100000);
     delay(50);
+
+    //init gps
+    if (GPS.begin()) {
+    GPS.setNavigationRate(1);
+    GPS.setAutoPVT(true);
+    Serial.println("GPS init OK");
+    } 
+    else {
+      Serial.println("GPS init FAILED");
+    }
+
+    //init baro
+    if(!lps.begin_I2C(0x5C)) {
+        DBG.println("LPS init failed");
+    } else {
+        DBG.println("LPS init OK");
+    }
+
+    lps.setDataRate(LPS22_RATE_50_HZ);
 
     //ASM init
     int asmStatus = asmimu.begin();
@@ -165,9 +225,6 @@ void setup() {
     BLA::Matrix<3, 1> ecef = {0, 0, 0};
 
     estimator.init(ecef, get_elapsed_seconds());
-
-
-
     // TODO initialize sensors
 
     DBG.begin(115200);
@@ -197,14 +254,14 @@ void loop() {
             readSensorData(s);
             gyro = {s.asm_gx, s.asm_gy, s.asm_gz};
             estimator.fastGyroProp(gyro, seconds);
-            estimator.ekfPredict(seconds);
+            //estimator.ekfPredict(seconds);
             
-            DBG.print("Gyro x: ");DBG.print(gyro(0, 0)); DBG.println(',');
-            DBG.print("Gyro y: ");DBG.print(gyro(1, 0)); DBG.println(',');
-            DBG.print("Gyro z: ");DBG.print(gyro(2, 0)); DBG.println(',');
+            //DBG.print("Gyro x: ");DBG.print(gyro(0, 0)); DBG.println(',');
+            //DBG.print("Gyro y: ");DBG.print(gyro(1, 0)); DBG.println(',');
+            //DBG.print("Gyro z: ");DBG.print(gyro(2, 0)); DBG.println(',');
         }
 
-        DBG.print(index); DBG.println(',');  
+        //DBG.print(index); DBG.println(',');  
         
         BLA::Matrix<20,1> state = estimator.getState();
 
@@ -215,17 +272,23 @@ void loop() {
         }
 
             */
-        DBG.print("Q1: "); DBG.print(state(0, 0)); DBG.println(',');
-        DBG.print("Qx: "); DBG.print(state(1, 0)); DBG.println(',');
-        DBG.print("Qy: "); DBG.print(state(2, 0)); DBG.println(',');
-        DBG.print("Qz: "); DBG.print(state(3, 0)); DBG.println(',');
+        //DBG.print(get_elapsed_seconds()); DBG.print(',');
+        //DBG.print("Q1: ");
+       // DBG.print(state(0, 0)); DBG.print(',');
+        //DBG.print("Qx: ");
+        //DBG.print(state(1, 0)); DBG.print(',');
+        //DBG.print("Qy: ");
+        //DBG.print(state(2, 0)); DBG.print(',');
+        //DBG.print("Qz: ");
+        //DBG.print(state(3, 0)); DBG.println(',');
+        /*
         DBG.print("Vx: "); DBG.print(state(4, 0)); DBG.println(',');
         DBG.print("Vy: "); DBG.print(state(5, 0)); DBG.println(',');
         DBG.print("Vz: "); DBG.print(state(6, 0)); DBG.println(',');
         DBG.print("Px: "); DBG.print(state(7, 0)); DBG.println(',');
         DBG.print("Py: "); DBG.print(state(8, 0)); DBG.println(',');
         DBG.print("Pz: "); DBG.print(state(9, 0)); DBG.println(',');
-
+        */
 
         index++;
     }

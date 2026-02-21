@@ -8,6 +8,12 @@
 
 #include <array>
 
+#if defined(USBCON)
+#define DBG SerialUSB
+#else
+#define DBG Serial
+#endif
+
 using namespace QuaternionUtils;
 using namespace std;
 
@@ -132,11 +138,32 @@ void StateEstimator::computeInitialOrientation() {
 BLA::Matrix<20, 1> StateEstimator::fastGyroProp(BLA::Matrix<3,1> gyro, float curr_time) {
     BLA::Matrix<4, 1> last_relevant_times = {0, 1, 3, 4};
     float dt = curr_time - vecMax(extractSub(lastTimes, last_relevant_times));
+    
+    float dt2 = dt/2.0f;
 
+
+
+    BLA::Matrix<4, 1> p_q = extractSub(x, QMEKFInds::quat);
     // TODO combine gyro through vimu
 
     BLA::Matrix<3, 1> unbiased_gyro = gyro - extractSub(x, QMEKFInds::gyroBias);
-    BLA::Matrix<4, 1> new_q = quatMultiply(extractSub(x, QMEKFInds::quat), rotVec2dQuat(unbiased_gyro * dt));
+    //BLA::Matrix<4, 1> new_q = quatMultiply(extractSub(x, QMEKFInds::quat), rotVec2dQuat(unbiased_gyro * dt));
+
+    BLA::Matrix<4, 1> new_q = (
+        (p_q(0) - dt2*(unbiased_gyro(0))*p_q(1) - dt2*(unbiased_gyro(1))*p_q(2) - dt2*(unbiased_gyro(2))*p_q(3)),
+        (p_q(1) + dt2*(unbiased_gyro(0))*p_q(0) - dt2*(unbiased_gyro(1))*p_q(3) + dt2*(unbiased_gyro(2))*p_q(2)),
+        (p_q(2) + dt2*(unbiased_gyro(0))*p_q(3) + dt2*(unbiased_gyro(1))*p_q(0) - dt2*(unbiased_gyro(2))*p_q(1)),
+        (p_q(3) - dt2*(unbiased_gyro(0))*p_q(2) + dt2*(unbiased_gyro(1))*p_q(1) + dt2*(unbiased_gyro(2))*p_q(0))
+    );
+
+    new_q = new_q / BLA::Norm(new_q);
+
+    DBG.println(dt2, 5);
+
+    DBG.print(new_q(0)); DBG.print(",");
+    DBG.print(new_q(1)); DBG.print(",");
+    DBG.print(new_q(2)); DBG.print(",");
+    DBG.println(new_q(3));
     x = setSub(x, QMEKFInds::quat, new_q);
     gyro_prev = unbiased_gyro;
     lastTimes(0) = curr_time;
