@@ -36,7 +36,6 @@ static ASM330LHHSensor asmimu(&Wire);
 #include "QuaternionUtils.h"
 
 using namespace QuaternionUtils;
-// This line is a game changer
 
 int diddy = 0;
 
