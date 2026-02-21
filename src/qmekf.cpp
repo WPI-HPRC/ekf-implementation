@@ -197,7 +197,7 @@ BLA::Matrix<20, 1> StateEstimator::fastAccelProp(BLA::Matrix<3, 1> accel, float 
     BLA::Matrix<4,1> q = extractSub(x, QMEKFInds::quat);
     BLA::Matrix<3,3> C_bi = quat2DCM(q);
     BLA::Matrix<3,1> f_i  = ~C_bi * f_b;
-    BLA::Matrix<3,1> a_i  = f_i - g_i;
+    BLA::Matrix<3,1> a_i  = f_i + g_i;
 
     DBG.print("a_i: "); DBG.print(a_i(0)); DBG.print(','); DBG.print(a_i(1)); DBG.print(','); DBG.println(a_i(2));
 
