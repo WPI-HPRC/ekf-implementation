@@ -68,7 +68,7 @@ BLA::Matrix<20, 1> StateEstimator::getState() {
     return x;
 }
 
-BLA::Matrix<20, 20> StateEstimator::getP() {
+BLA::Matrix<19, 19> StateEstimator::getP() {
     return P;
 }
 
@@ -182,7 +182,7 @@ BLA::Matrix<20, 1> StateEstimator::fastAccelProp(BLA::Matrix<3, 1> accel, float 
     return x;
 }
 
-BLA::Matrix<20, 20> StateEstimator::ekfPredict(float curr_time) {
+BLA::Matrix<19, 19> StateEstimator::ekfPredict(float curr_time) {
     // TODO finish this. too lazy
     BLA::Matrix<4, 1> att_last_relevant_times = {0, 1, 3, 4};
     BLA::Matrix<4, 1> pv_last_relevant_times = {1, 4, 5};
@@ -195,7 +195,7 @@ BLA::Matrix<20, 20> StateEstimator::ekfPredict(float curr_time) {
 
     BLA::Matrix<3, 3> q_conj_dcm = quat2DCM(quatConjugate(extractSub(x, QMEKFInds::quat)));
 
-    BLA::Matrix<20, 20> F;
+    BLA::Matrix<19, 19> F;
     F.Fill(0);
 
     //Row 1 - 3
@@ -209,15 +209,15 @@ BLA::Matrix<20, 20> StateEstimator::ekfPredict(float curr_time) {
     //Row 7 - 9
     F.Submatrix<3, 3>(QMEKFInds::p_x - 1, QMEKFInds::v_x - 1) = I_3;
     
-    BLA::Matrix<20, 20> phi;
+    BLA::Matrix<19, 19> phi;
     phi.Fill(0);
 
-    phi = I_20 + (F * pv_dt) + (0.5f * F * F * float(pow(pv_dt, 2))); // I was hoping to split up the dt. Not that deep tho
+    phi = I_19 + (F * pv_dt) + (0.5f * F * F * float(pow(pv_dt, 2))); // I was hoping to split up the dt. Not that deep tho
 
-    BLA::Matrix<20, 20> phi_t = ~phi;
+    BLA::Matrix<19, 19> phi_t = ~phi;
 
     // Process noise
-    BLA::Matrix<20, 20> Q_d;
+    BLA::Matrix<19, 19> Q_d;
     Q_d.Fill(0);
 
 
@@ -252,10 +252,9 @@ BLA::Matrix<20, 20> StateEstimator::ekfPredict(float curr_time) {
     mag_bias_var_diag(1, 1) = 0.003226824f;
     mag_bias_var_diag(2, 2) = 0.01745155f;
 
-    BLA::Matrix<2, 2> baro_bias_var_diag;
+    BLA::Matrix<1, 1> baro_bias_var_diag;
     baro_bias_var_diag.Fill(0);
-    baro_bias_var_diag(0, 0) = 0.01243823;
-    baro_bias_var_diag(1, 1) = 0.008426440f;
+    baro_bias_var_diag(0, 0) = 0.01243823f;
 
     Q_d.Submatrix<3, 3>(QMEKFInds::q_w, QMEKFInds::q_w) = (gyro_var_diag * att_dt) + (gyro_bias_var_diag * float((pow(att_dt, 3) / 10)));
     Q_d.Submatrix<3, 3>(QMEKFInds::q_w, 9) = -1.0f * gyro_bias_var_diag * float((pow(att_dt, 2) / 2));
@@ -276,10 +275,8 @@ BLA::Matrix<20, 20> StateEstimator::ekfPredict(float curr_time) {
     Q_d.Submatrix<3, 3>(12, 12) = accel_bias_var_diag * pv_dt;
 
     Q_d.Submatrix<3, 3>(15, 15) = mag_bias_var_diag * pv_dt;
-    Q_d.Submatrix<2, 2>(18, 18) = baro_bias_var_diag * pv_dt;
-
-    BLA::Matrix<20, 20> P;
-    
+    Q_d.Submatrix<1, 1>(18, 18) = baro_bias_var_diag * pv_dt;
+        
     P = phi * P * phi_t + Q_d;
 
     return P;
@@ -293,7 +290,7 @@ BLA::Matrix<20, 1> StateEstimator::runAccelUpdate(BLA::Matrix<3, 1> a_b, float c
 
     BLA::Matrix<3, 1> h_accel = quat2DCM(q) * normal_i_ecef(launch_dcmned2ecef);
 
-    BLA::Matrix<3, 20> H_accel;
+    BLA::Matrix<3, 19> H_accel;
     H_accel.Fill(0);
     H_accel.Submatrix<3, 3>(0, 0) = skewSymmetric(h_accel);
     H_accel.Submatrix<3, 3>(0, QMEKFInds::ab_x - 1) = I_3;
@@ -311,7 +308,7 @@ BLA::Matrix<20, 1> StateEstimator::runMagUpdate(BLA::Matrix<3, 1> m_b, float cur
 
     BLA::Matrix<3, 1> h_mag = quat2DCM(q) * m_i_ecef(launch_dcmned2ecef);
 
-    BLA::Matrix<3, 20> H_mag;
+    BLA::Matrix<3, 19> H_mag;
     H_mag.Fill(0);
     H_mag.Submatrix<3, 3>(0, 0) = skewSymmetric(h_mag);
     H_mag.Submatrix<3, 3>(0, QMEKFInds::mb_x - 1) = I_3;
@@ -332,7 +329,7 @@ BLA::Matrix<20, 1> StateEstimator::runGPSUpdate(BLA::Matrix<3, 1> gpsPos, BLA::M
         BLA::Matrix<3, 1> h_vi = quat2DCM(quatConjugate(q)) * v_b;
         BLA::Matrix<9, 1> h_gps = vstack(extractSub(x, vstack(QMEKFInds::vel, QMEKFInds::pos)), extractSub(x, QMEKFInds::vel));
         
-        BLA::Matrix<9, 20> H_gps;
+        BLA::Matrix<9, 19> H_gps;
         H_gps.Fill(0);
         H_gps.Submatrix<3, 3>(0, QMEKFInds::v_x - 1) = I_3;
         H_gps.Submatrix<3, 3>(3, QMEKFInds::p_x - 1) = I_3;
@@ -343,7 +340,7 @@ BLA::Matrix<20, 1> StateEstimator::runGPSUpdate(BLA::Matrix<3, 1> gpsPos, BLA::M
         return ekfCalcErrorInject(combined_sens, H_gps, h_gps, R);
     } else {
         BLA::Matrix<6, 1> combined_sens = vstack(gpsVel, gpsPos);
-        BLA::Matrix<6, 20> H_gps;
+        BLA::Matrix<6, 19> H_gps;
         H_gps.Fill(0);
         H_gps.Submatrix<3, 3>(0, QMEKFInds::v_x - 1) = I_3;
         H_gps.Submatrix<3, 3>(3, QMEKFInds::p_x - 1) = I_3;
@@ -366,11 +363,10 @@ BLA::Matrix<20, 1> StateEstimator::runBaroUpdate(BLA::Matrix<1, 1> baro, float c
     BLA::Matrix<3, 1> dh_decef = {cosd(lla(0)) * cosd(lla(1)), cosd(lla(0)) * sind(lla(1)), sind(lla(0))};
     BLA::Matrix<3, 1> dP_decef = dP_dh * dh_decef;
 
-    BLA::Matrix<1, 20> H_baro;
-    H_baro.Fill(0);
-    H_baro.Submatrix<1, 3>(0, QMEKFInds::p_x - 1) = ~dP_decef;
-    H_baro(0, 18) = 1.0f;
-    H_baro(0, 19) = 1.0f;
+    BLA::Matrix<1, 19> H_baro;
+        H_baro.Fill(0);
+        H_baro.Submatrix<1, 3>(0, QMEKFInds::p_x - 1) = ~dP_decef;
+        H_baro(0, 18) = 1.0f;
 
     BLA::Matrix<1, 1> R = lps22_const::baro_var;
 
@@ -387,16 +383,16 @@ float StateEstimator::getTemp() {
 }
 
 template<int rows>
-BLA::Matrix<20, 1> StateEstimator::ekfCalcErrorInject(BLA::Matrix<rows, 1> &sens_reading, BLA::Matrix<rows, 20> H, BLA::Matrix<rows, 1> h, BLA::Matrix<rows, rows> R) {
+BLA::Matrix<20, 1> StateEstimator::ekfCalcErrorInject(BLA::Matrix<rows, 1> &sens_reading, BLA::Matrix<rows, 19> H, BLA::Matrix<rows, 1> h, BLA::Matrix<rows, rows> R) {
     BLA::Matrix<rows, 1> residual = sens_reading - h;
     
     BLA::Matrix<rows, rows> S;
-    BLA::Matrix<20, rows> K;
-    BLA::Matrix<20, rows> H_t = ~H;
+    BLA::Matrix<19, rows> K;
+    BLA::Matrix<19, rows> H_t = ~H;
     
     S = H * P * H_t + R;
     K = (P * H_t) * BLA::Inverse(S);
-    BLA::Matrix<20, 1> postErrorState = K * residual;
+    BLA::Matrix<19, 1> postErrorState = K * residual;
     
     // Inject error angles into quat
     BLA::Matrix<3, 1> alpha = extractSub(postErrorState, QMEKFInds::smallAngle);
@@ -424,7 +420,7 @@ BLA::Matrix<20, 1> StateEstimator::ekfCalcErrorInject(BLA::Matrix<rows, 1> &sens
     x(17) += postErrorState(16);
     x(18) += postErrorState(17);
     x(19) += postErrorState(18);
-    x(20) += postErrorState(19);
+
     
     return x;
 }

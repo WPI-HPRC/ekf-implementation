@@ -152,6 +152,7 @@ static bool readSensorData(Sample &s) {
 BLA::Matrix<3, 1> gyro = {0, 0, 0};
 BLA::Matrix<3, 1> accel = {0, 0, 0};
 BLA::Matrix<3, 1> mag = {0, 0, 0};
+BLA::Matrix<1, 1> baro = {0};
 BLA::Matrix<2, 1> gps_pos = {0, 0};
 BLA::Matrix<3, 1> gps_vel = {0, 0, 0};
 
@@ -255,8 +256,14 @@ void loop() {
             readSensorData(s);
             gyro = {s.asm_gx, s.asm_gy, s.asm_gz};
             accel = {s.asm_ax, s.asm_ay, s.asm_az};
+            mag = {s.icm_mx, s.icm_my, s.icm_mz};
+            baro = {s.lps_p};
             estimator.fastGyroProp(gyro, seconds);
             estimator.fastAccelProp(accel, seconds);
+            estimator.ekfPredict(seconds);
+            estimator.runAccelUpdate(accel, seconds);
+            estimator.runMagUpdate(mag, seconds);
+            estimator.runBaroUpdate(baro, seconds);
             //estimator.ekfPredict(seconds);
             
             //DBG.print("Gyro x: ");DBG.print(gyro(0, 0)); DBG.println(',');
@@ -273,8 +280,8 @@ void loop() {
         for (int i = 0; i < 10; i++) {
             DBG.print(state(i, 0)); DBG.print(',');
         }
-*/
-        /*
+                */
+        
         DBG.print(get_elapsed_seconds()); DBG.print(',');
         DBG.print("Q1: ");
         DBG.print(state(0, 0)); DBG.print(',');
@@ -291,7 +298,7 @@ void loop() {
         DBG.print("Px: "); DBG.print(state(7, 0)); DBG.println(',');
         DBG.print("Py: "); DBG.print(state(8, 0)); DBG.println(',');
         DBG.print("Pz: "); DBG.print(state(9, 0)); DBG.println(',');
-        */
+
 
         index++;
     //}

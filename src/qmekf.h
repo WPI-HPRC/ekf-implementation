@@ -65,10 +65,10 @@ class StateEstimator {
     BLA::Matrix<20, 1> x;
 
     // Error Covariance Allocation TODO eventually
-    BLA::Matrix<20, 20> P;
+    BLA::Matrix<19, 19> P;
 
     BLA::Matrix<20, 1> getState();
-    BLA::Matrix<20, 20> getP();
+    BLA::Matrix<19, 19> getP();
     BLA::Matrix<3, 1> get_gyro_prev();
     BLA::Matrix<3, 1> get_accel_prev();
     BLA::Matrix<3,1> get_vel_prev();
@@ -84,7 +84,7 @@ class StateEstimator {
 
     BLA::Matrix<20, 1> fastGyroProp(BLA::Matrix<3,1> gyro, float curr_time);
     BLA::Matrix<20, 1> fastAccelProp(BLA::Matrix<3,1> accel, float curr_time);
-    BLA::Matrix<20, 20> ekfPredict(float curr_time);
+    BLA::Matrix<19, 19> ekfPredict(float curr_time);
 
     // Update Functions
     BLA::Matrix<20, 1> runAccelUpdate(BLA::Matrix<3, 1> a_b, float curr_time);
@@ -95,7 +95,7 @@ class StateEstimator {
     float getTemp();
 
     template<int rows>
-    BLA::Matrix<20, 1> ekfCalcErrorInject(BLA::Matrix<rows, 1> &sens_reading, BLA::Matrix<rows, 20> H, BLA::Matrix<rows, 1> h, BLA::Matrix<rows, rows> R);
+    BLA::Matrix<20, 1> ekfCalcErrorInject(BLA::Matrix<rows, 1> &sens_reading, BLA::Matrix<rows, 19> H, BLA::Matrix<rows, 1> h, BLA::Matrix<rows, rows> R);
 
     BLA::Matrix<4, 1> getNEDOrientation(BLA::Matrix<3, 3> &dcm_ned2ecef);
     
