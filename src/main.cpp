@@ -38,6 +38,8 @@ static ASM330LHHSensor asmimu(&Wire);
 using namespace QuaternionUtils;
 // This line is a game changer
 
+int diddy = 0;
+
 struct MAX10SData {
     float lat;
     float lon;
@@ -261,16 +263,16 @@ void loop() {
             estimator.fastGyroProp(gyro, seconds);
             estimator.fastAccelProp(accel, seconds);
             estimator.ekfPredict(seconds);
+
             estimator.runAccelUpdate(accel, seconds);
             estimator.runMagUpdate(mag, seconds);
-            estimator.runBaroUpdate(baro, seconds);
-            //estimator.ekfPredict(seconds);
+            //estimator.runBaroUpdate(baro, seconds);
             
             //DBG.print("Gyro x: ");DBG.print(gyro(0, 0)); DBG.println(',');
             //DBG.print("Gyro y: ");DBG.print(gyro(1, 0)); DBG.println(',');
             //DBG.print("Gyro z: ");DBG.print(gyro(2, 0)); DBG.println(',');
+            diddy++;
         }
-
         //DBG.print(index); DBG.println(',');  
         
         BLA::Matrix<20,1> state = estimator.getState();

@@ -80,6 +80,8 @@ class StateEstimator {
 
     float curr_temp;
 
+    float lastPredictTime = 0.0f;
+
     void init(BLA::Matrix<3, 1> ECEF, float curr_time);
     void padLoop(BLA::Matrix<3, 1> accel, BLA::Matrix<3, 1> mag, BLA::Matrix<3, 1> gps_pos);
     void computeInitialOrientation();
