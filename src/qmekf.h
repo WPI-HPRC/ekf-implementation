@@ -43,8 +43,8 @@ constexpr int mb_y = 17;
 constexpr int mb_z = 18;
 inline BLA::Matrix<3, 1> magBias = {mb_x, mb_y, mb_z};
 
-constexpr int bb_t = 19;
-constexpr int bb_p = 20;
+constexpr int bb_p = 19;
+constexpr int bb_t = 20;
 inline BLA::Matrix<2, 1> baroBias = {bb_t, bb_p};
 
 
@@ -79,6 +79,9 @@ class StateEstimator {
     BLA::Matrix<1,1> get_baro_prev();
 
     float curr_temp;
+
+    BLA::Matrix<3,1> a_i_prev = {0, 0, 0};   
+    float lastAccelPropTime = 0.0f; 
 
     float lastPredictTime = 0.0f;
 

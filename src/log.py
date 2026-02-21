@@ -36,7 +36,7 @@ def main():
 
             print(len(parts))
 
-            if len(parts) != 18:
+            if len(parts) != 12:
                 print(f"Bad line: {line}")
                 continue
             

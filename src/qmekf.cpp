@@ -34,7 +34,7 @@ void StateEstimator::init(BLA::Matrix<3, 1> ECEF, float curr_time) {
     x = {1.0f, 0.0f, 0.0f, 0.0f,
             0.0f, 0.0f, 0.0f,
             0.0f, 0.0f, 0.0f,
-            vimu_const::gyro_bias(0), vimu_const::gyro_bias(0), vimu_const::gyro_bias(0),
+            vimu_const::gyro_bias(0), vimu_const::gyro_bias(1), vimu_const::gyro_bias(2),
             vimu_const::accel_bias(0), vimu_const::accel_bias(1), vimu_const::accel_bias(2),
             icm20948_const::mag_bias(0), icm20948_const::mag_bias(1), icm20948_const::mag_bias(2),
             lps22_const::baro_bias(0)};
@@ -74,6 +74,8 @@ void StateEstimator::init(BLA::Matrix<3, 1> ECEF, float curr_time) {
     baro_prev.Fill(0);
     sumAccel.Fill(0);
     sumMag.Fill(0);
+    a_i_prev.Fill(0);
+    lastAccelPropTime = curr_time;
 
     numLoop = 0;
 
@@ -185,29 +187,28 @@ BLA::Matrix<20, 1> StateEstimator::fastGyroProp(BLA::Matrix<3,1> gyro, float cur
 }
 
 BLA::Matrix<20, 1> StateEstimator::fastAccelProp(BLA::Matrix<3, 1> accel, float curr_time) {
-    BLA::Matrix<3, 1> last_relevant_times = {1, 4, 5};
-    float dt = curr_time - vecMax(extractSub(lastTimes, last_relevant_times));
+    float dt = curr_time - lastAccelPropTime;
+    if (dt <= 0.0f) return x;
+    lastAccelPropTime = curr_time;
 
-    // TODO combine accel through vimu
+    BLA::Matrix<3, 1> f_b = accel - extractSub(x, QMEKFInds::accelBias);
 
-    BLA::Matrix<3, 1> unbiased_accel = accel - extractSub(x, QMEKFInds::accelBias);
-    //DBG.print("unbiased accel: "); DBG.println(unbiased_accel);
     BLA::Matrix<3, 3> C_ib = quat2DCM(quatConjugate(extractSub(x, QMEKFInds::quat)));
+    BLA::Matrix<3, 1> f_i = C_ib * f_b;
+    BLA::Matrix<3, 1> g_i = g_i_ecef(launch_dcmned2ecef);
+    BLA::Matrix<3, 1> a_i = f_i - g_i;
 
-    BLA::Matrix<3, 1> a_i = C_ib * unbiased_accel;
-    BLA::Matrix<3, 1> a_i_prev = C_ib * accel_prev;
+    BLA::Matrix<3, 1> v = vel_prev + 0.5f * (a_i + a_i_prev) * dt;
+    BLA::Matrix<3, 1> p = pos_prev + 0.5f * (v + vel_prev) * dt;
 
-    BLA::Matrix<3, 1> v = vel_prev + ((a_i + a_i_prev) / 2.0f * dt + g_i_ecef(launch_dcmned2ecef))* dt;
-
-    DBG.print("v: "); DBG.println(v);
-    BLA::Matrix<3, 1> p = pos_prev + ((v + vel_prev) / 2.0f) * dt;
-    x = setSub(x, QMEKFInds::vel, v);
-    x = setSub(x, QMEKFInds::pos, p);
-
-    accel_prev = unbiased_accel;
+    a_i_prev = a_i;
     vel_prev = v;
     pos_prev = p;
+    accel_prev = f_b;
     lastTimes(1) = curr_time;
+
+    x = setSub(x, QMEKFInds::vel, v);
+    x = setSub(x, QMEKFInds::pos, p);
     return x;
 }
 
@@ -327,16 +328,25 @@ BLA::Matrix<20, 1> StateEstimator::runAccelUpdate(BLA::Matrix<3, 1> a_b, float c
     unbiased_accel = (unbiased_accel / u_a_n);
     BLA::Matrix<4,1> q = extractSub(x, QMEKFInds::quat);
 
-    DBG.print("unbiased accel: "); DBG.println(unbiased_accel);
-
     BLA::Matrix<3, 1> h_accel = quat2DCM(q) * normal_i_ecef(launch_dcmned2ecef);
+    float h_a_n = BLA::Norm(h_accel);
+    h_accel = h_accel / h_a_n;
+
 
     BLA::Matrix<3, 19> H_accel;
     H_accel.Fill(0);
-    H_accel.Submatrix<3, 3>(0, 0) = skewSymmetric(h_accel);
-    H_accel.Submatrix<3, 3>(0, QMEKFInds::ab_x - 1) = I_3;
+    H_accel.Submatrix<3, 3>(0, 0) = -1.0f * skewSymmetric(h_accel);
+    //H_accel.Submatrix<3, 3>(0, QMEKFInds::ab_x - 1) = I_3;
 
-    BLA::Matrix<3, 3> R = toDiag(icm20948_const::accel_var);
+    BLA::Matrix<3, 3> R;
+    R.Fill(0);
+    //tune ts
+    float sigma_accel = 0.1f; 
+    float sigma_n = sigma_accel / u_a_n;
+    //why wont diag wrk ugh
+    R(0, 0) = sigma_n * sigma_n;
+    R(1, 1) = sigma_n * sigma_n;
+    R(2, 2) = sigma_n * sigma_n;
 
     lastTimes(2) = curr_time;
     return ekfCalcErrorInject(unbiased_accel, H_accel, h_accel, R);
@@ -344,17 +354,26 @@ BLA::Matrix<20, 1> StateEstimator::runAccelUpdate(BLA::Matrix<3, 1> a_b, float c
 
 BLA::Matrix<20, 1> StateEstimator::runMagUpdate(BLA::Matrix<3, 1> m_b, float curr_time) {
     BLA::Matrix<3, 1> unbiased_accel = m_b - extractSub(x, QMEKFInds::magBias);
-
+    float u_m_n = BLA::Norm(unbiased_accel);
+    unbiased_accel = unbiased_accel / u_m_n;
     BLA::Matrix<4,1> q = extractSub(x, QMEKFInds::quat);
 
     BLA::Matrix<3, 1> h_mag = quat2DCM(q) * m_i_ecef(launch_dcmned2ecef);
 
     BLA::Matrix<3, 19> H_mag;
     H_mag.Fill(0);
-    H_mag.Submatrix<3, 3>(0, 0) = skewSymmetric(h_mag);
+    H_mag.Submatrix<3, 3>(0, 0) = -1.0f * skewSymmetric(h_mag);
     H_mag.Submatrix<3, 3>(0, QMEKFInds::mb_x - 1) = I_3;
 
-    BLA::Matrix<3, 3> R = toDiag(icm20948_const::mag_var);
+    float sigma_mag = 0.10f;
+    float sigma_dir = sigma_mag / u_m_n;
+    float var = sigma_dir * sigma_dir;
+
+    BLA::Matrix<3, 3> R;
+    R.Fill(0);
+    R(0, 0) = var;
+    R(1, 1) = var;
+    R(2, 2) = var;
 
     lastTimes(3) = curr_time;
     return ekfCalcErrorInject(unbiased_accel, H_mag, h_mag, R);
@@ -433,6 +452,9 @@ BLA::Matrix<20, 1> StateEstimator::ekfCalcErrorInject(BLA::Matrix<rows, 1> &sens
     
     S = H * P * H_t + R;
     K = (P * H_t) * BLA::Inverse(S);
+    //joseph stabalize on it
+    BLA::Matrix<19, 19> IKH = I_19 - K * H;
+    P = IKH * P * ~IKH + K * R * ~K;
     BLA::Matrix<19, 1> postErrorState = K * residual;
     
     // Inject error angles into quat

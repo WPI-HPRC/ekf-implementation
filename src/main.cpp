@@ -234,7 +234,7 @@ void setup() {
     delay(5000);
 
     DBG.println("READY");
-    DBG.println("w,i,j,k,vel_x,vel_y,vel_z,pos_x,pos_y,pos_z");
+    DBG.println("index,t,w,i,j,k,vel_x,vel_y,vel_z,pos_x,pos_y,pos_z");
 
 }
 
@@ -254,12 +254,15 @@ void loop() {
         static uint32_t index = 0;
         float seconds = get_elapsed_seconds();
         if (seconds - lastCalcTimes(0, 0) >= runRates(0, 0)) {
+            lastCalcTimes(0, 0) = seconds;
             Sample s;
             readSensorData(s);
             gyro = {s.asm_gx, s.asm_gy, s.asm_gz};
             accel = {s.asm_ax, s.asm_ay, s.asm_az};
             mag = {s.icm_mx, s.icm_my, s.icm_mz};
             baro = {s.lps_p};
+
+            
             estimator.fastGyroProp(gyro, seconds);
             estimator.fastAccelProp(accel, seconds);
             estimator.ekfPredict(seconds);
@@ -283,24 +286,29 @@ void loop() {
             DBG.print(state(i, 0)); DBG.print(',');
         }
                 */
-        
+        DBG.print(index); DBG.print(',');
         DBG.print(get_elapsed_seconds()); DBG.print(',');
-        DBG.print("Q1: ");
+        //DBG.print("Q1: ");
         DBG.print(state(0, 0)); DBG.print(',');
-        DBG.print("Qx: ");
+        //DBG.print("Qx: ");
         DBG.print(state(1, 0)); DBG.print(',');
-        DBG.print("Qy: ");
+        //DBG.print("Qy: ");
         DBG.print(state(2, 0)); DBG.print(',');
-        DBG.print("Qz: ");
-        DBG.print(state(3, 0)); DBG.println(',');
+        //DBG.print("Qz: ");
+        DBG.print(state(3, 0)); DBG.print(',');
         
-        DBG.print("Vx: "); DBG.print(state(4, 0)); DBG.println(',');
-        DBG.print("Vy: "); DBG.print(state(5, 0)); DBG.println(',');
-        DBG.print("Vz: "); DBG.print(state(6, 0)); DBG.println(',');
-        DBG.print("Px: "); DBG.print(state(7, 0)); DBG.println(',');
-        DBG.print("Py: "); DBG.print(state(8, 0)); DBG.println(',');
-        DBG.print("Pz: "); DBG.print(state(9, 0)); DBG.println(',');
-
+        //DBG.print("Vx: "); 
+        DBG.print(state(4, 0)); DBG.print(',');
+        //DBG.print("Vy: "); 
+        DBG.print(state(5, 0)); DBG.print(',');
+        //DBG.print("Vz: "); 
+        DBG.print(state(6, 0)); DBG.print(',');
+        //DBG.print("Px: "); 
+        DBG.print(state(7, 0)); DBG.print(',');
+        //DBG.print("Py: "); 
+        DBG.print(state(8, 0)); DBG.print(',');
+        //DBG.print("Pz: "); 
+        DBG.println(state(9, 0));
 
         index++;
     //}
