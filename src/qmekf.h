@@ -44,8 +44,7 @@ constexpr int mb_z = 18;
 inline BLA::Matrix<3, 1> magBias = {mb_x, mb_y, mb_z};
 
 constexpr int bb_p = 19;
-constexpr int bb_t = 20;
-inline BLA::Matrix<2, 1> baroBias = {bb_t, bb_p};
+inline BLA::Matrix<1, 1> baroBias = {bb_p};
 
 
 

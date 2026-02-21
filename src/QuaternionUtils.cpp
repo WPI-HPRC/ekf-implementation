@@ -142,30 +142,35 @@ BLA::Matrix<4, 1> QuaternionUtils::dcm2quat(const BLA::Matrix<3, 3> &dcm) {
             q_ret(3, 0) = dcm(2, 0) + dcm(0, 2);
             q_ret(0, 0) = dcm(1, 2) - dcm(2, 1);
             q_ret = q_ret / (4.0f * sqrt(q_sq(0, 0)));
+            break;
         case 1:
             q_ret(1, 0) = dcm(0, 1) + dcm(1, 0);
             q_ret(2, 0) = 4.0 * q_sq(1, 0);
             q_ret(3, 0) = dcm(1, 2) + dcm(2, 1);
             q_ret(0, 0) = dcm(2, 0) - dcm(0, 2);
             q_ret = q_ret / (4.0f * sqrt(q_sq(1, 0)));
+            break;
         case 2:
             q_ret(1, 0) = dcm(2, 0) + dcm(0, 2);
             q_ret(2, 0) = dcm(1, 2) + dcm(2, 1);
             q_ret(3, 0) = 4.0 * q_sq(2, 0);
             q_ret(0, 0) = dcm(0, 1) - dcm(1, 0);
             q_ret = q_ret / (4.0f * sqrt(q_sq(2, 0)));
+            break;
         case 3:
             q_ret(1, 0) = dcm(1, 2) - dcm(2, 1);
             q_ret(2, 0) = dcm(2, 0) - dcm(0, 2);
             q_ret(3, 0) = dcm(0, 1) - dcm(1, 0);
             q_ret(0, 0) = 4.0 * q_sq(3, 0);
             q_ret = q_ret / (4.0f * sqrt(q_sq(3, 0)));
+            break;
     }
 
     return q_ret;
 }
 
 // TODO test 
+/*replacing ts for now
 BLA::Matrix<4, 1> QuaternionUtils::quatMultiply(const BLA::Matrix<4, 1> &p, const BLA::Matrix<4, 1> &q) {
     BLA::Matrix<4, 1> quat;
 
@@ -177,6 +182,21 @@ BLA::Matrix<4, 1> QuaternionUtils::quatMultiply(const BLA::Matrix<4, 1> &p, cons
     // Should we always normalize here?
     return quat;
 
+}
+*/
+BLA::Matrix<4, 1> QuaternionUtils::quatMultiply(const BLA::Matrix<4, 1> &p,
+                                                const BLA::Matrix<4, 1> &q) {
+    BLA::Matrix<4, 1> r;
+
+    float pw = p(0), px = p(1), py = p(2), pz = p(3);
+    float qw = q(0), qx = q(1), qy = q(2), qz = q(3);
+
+    r(0) = pw*qw - px*qx - py*qy - pz*qz;
+    r(1) = pw*qx + px*qw + py*qz - pz*qy;
+    r(2) = pw*qy - px*qz + py*qw + pz*qx;
+    r(3) = pw*qz + px*qy - py*qx + pz*qw;
+
+    return r;
 }
 
 // Note: Not super high precision like I want, however unlikely to convert this way

@@ -34,8 +34,6 @@ def main():
 
             parts = line.split(",")
 
-            print(len(parts))
-
             if len(parts) != 12:
                 print(f"Bad line: {line}")
                 continue
@@ -48,7 +46,7 @@ def main():
                 continue
 
             w.writerow(parts)
-            print(f"Logged row: {parts[0]}")
+            #print(f"Logged row: {parts[0]}")
             rows += 1
 
             now = time.time()

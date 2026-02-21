@@ -193,10 +193,13 @@ BLA::Matrix<20, 1> StateEstimator::fastAccelProp(BLA::Matrix<3, 1> accel, float 
 
     BLA::Matrix<3, 1> f_b = accel - extractSub(x, QMEKFInds::accelBias);
 
-    BLA::Matrix<3, 3> C_ib = quat2DCM(quatConjugate(extractSub(x, QMEKFInds::quat)));
-    BLA::Matrix<3, 1> f_i = C_ib * f_b;
     BLA::Matrix<3, 1> g_i = g_i_ecef(launch_dcmned2ecef);
-    BLA::Matrix<3, 1> a_i = f_i - g_i;
+    BLA::Matrix<4,1> q = extractSub(x, QMEKFInds::quat);
+    BLA::Matrix<3,3> C_bi = quat2DCM(q);
+    BLA::Matrix<3,1> f_i  = ~C_bi * f_b;
+    BLA::Matrix<3,1> a_i  = f_i - g_i;
+
+    DBG.print("a_i: "); DBG.print(a_i(0)); DBG.print(','); DBG.print(a_i(1)); DBG.print(','); DBG.println(a_i(2));
 
     BLA::Matrix<3, 1> v = vel_prev + 0.5f * (a_i + a_i_prev) * dt;
     BLA::Matrix<3, 1> p = pos_prev + 0.5f * (v + vel_prev) * dt;
@@ -336,7 +339,7 @@ BLA::Matrix<20, 1> StateEstimator::runAccelUpdate(BLA::Matrix<3, 1> a_b, float c
     BLA::Matrix<3, 19> H_accel;
     H_accel.Fill(0);
     H_accel.Submatrix<3, 3>(0, 0) = -1.0f * skewSymmetric(h_accel);
-    //H_accel.Submatrix<3, 3>(0, QMEKFInds::ab_x - 1) = I_3;
+    H_accel.Submatrix<3, 3>(0, QMEKFInds::ab_x - 1) = I_3;
 
     BLA::Matrix<3, 3> R;
     R.Fill(0);
@@ -353,9 +356,9 @@ BLA::Matrix<20, 1> StateEstimator::runAccelUpdate(BLA::Matrix<3, 1> a_b, float c
 }
 
 BLA::Matrix<20, 1> StateEstimator::runMagUpdate(BLA::Matrix<3, 1> m_b, float curr_time) {
-    BLA::Matrix<3, 1> unbiased_accel = m_b - extractSub(x, QMEKFInds::magBias);
-    float u_m_n = BLA::Norm(unbiased_accel);
-    unbiased_accel = unbiased_accel / u_m_n;
+    BLA::Matrix<3, 1> unbiased_mag = m_b - extractSub(x, QMEKFInds::magBias);
+    float u_m_n = BLA::Norm(unbiased_mag);
+    unbiased_mag = unbiased_mag / u_m_n;
     BLA::Matrix<4,1> q = extractSub(x, QMEKFInds::quat);
 
     BLA::Matrix<3, 1> h_mag = quat2DCM(q) * m_i_ecef(launch_dcmned2ecef);
@@ -376,7 +379,7 @@ BLA::Matrix<20, 1> StateEstimator::runMagUpdate(BLA::Matrix<3, 1> m_b, float cur
     R(2, 2) = var;
 
     lastTimes(3) = curr_time;
-    return ekfCalcErrorInject(unbiased_accel, H_mag, h_mag, R);
+    return ekfCalcErrorInject(unbiased_mag, H_mag, h_mag, R);
 }
 
 BLA::Matrix<20, 1> StateEstimator::runGPSUpdate(BLA::Matrix<3, 1> gpsPos, BLA::Matrix<3, 1> gpsVel, bool velOrientation, float curr_time) {
@@ -425,7 +428,7 @@ BLA::Matrix<20, 1> StateEstimator::runBaroUpdate(BLA::Matrix<1, 1> baro, float c
 
     BLA::Matrix<1, 19> H_baro;
         H_baro.Fill(0);
-        H_baro.Submatrix<1, 3>(0, QMEKFInds::p_x - 1) = ~dP_decef;
+        H_baro.Submatrix<1, 3>(0, QMEKFInds::bb_p - 1) = ~dP_decef;
         H_baro(0, 18) = 1.0f;
 
     BLA::Matrix<1, 1> R = lps22_const::baro_var;
@@ -464,7 +467,12 @@ BLA::Matrix<20, 1> StateEstimator::ekfCalcErrorInject(BLA::Matrix<rows, 1> &sens
     BLA::Matrix<4, 1> q = quatMultiply(old_q, smallAnglerotVec2dQuat(alpha));
     float q_norm = BLA::Norm(q);
     q = q / q_norm;
-
+    /* q = q / q_norm;    trying left mult 
+    BLA::Matrix old_q = extractSub(x, QMEKFInds::quat);
+    BLA::Matrix<4, 1> dq = smallAnglerotVec2dQuat(alpha);
+    BLA::Matrix<4, 1> q  = quatMultiply(dq, old_q);
+    q = q / BLA::Norm(q);
+    */
     x(0) = q(0);
     x(1) = q(1);
     x(2) = q(2);

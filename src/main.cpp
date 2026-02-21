@@ -310,6 +310,9 @@ void loop() {
         //DBG.print("Pz: "); 
         DBG.println(state(9, 0));
 
+        DBG.print(state(0, 0)); DBG.print(',');
+        DBG.println(state(6, 0));
+
         index++;
     //}
     // Poll each sensor
