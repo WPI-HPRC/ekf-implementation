@@ -1,0 +1,84 @@
+Notes:
+
+
+I change magData variable to imuData because it contains all the IMU data, not just magData
+Also please change the accel to return the m/s^2, not g's
+I change take in int variable state to onLoop, not the boolean:
+	0 = preLaunch
+	1 = high thrust
+	2 = coast
+	3 = falling down
+
+
+
+Frequencies variable in format:
+	gyro integrate
+	accel integrate
+	accel upate
+	mag update
+	gps update
+	baro update
+
+
+Note: Could account for distance between the vimu and gps/baro for position calculations, but honesely, is wastes more cpu time than its worth
+
+
+
+
+
+BLA library:
+
+* Norm: BLA::Norm(vec);
+* BLA::CrossProduct(A, B);
+* Define: BLA::Matrix<2, 3> x = {1, 2, 3,
+								4, 5, 6,}
+* Multiplication, addition is just *, +, / (note: ensure by a float. ex: 2.0f)
+* Submatrix: A.Submatrix<2,2>(1,0); Of a 3x2 mat A, returns bottom 2 rows
+* Transpose: A: ~a
+* Inverse: A: BLA::Inverse(A)
+* PINV: A: QuaternionUtils::pinv(A)
+
+
+struct ekfState {
+    float w;
+    float i;
+    float j;
+    float k;
+    float velX;
+    float velY;
+    float velZ;
+    float posX;
+    float posY;
+    float posZ;
+    float gyroBX;
+    float gyroBY;
+    float gyroBZ;
+    float accelBX;
+    float accelBY;
+    float accelBZ;
+    float magBX;
+    float magBY;
+    float magBZ;
+    float baroB;
+}
+
+struct ekfP {
+    float P0;
+    float P1;
+    float P3;
+    float P4;
+    float P5;
+    float P6;
+    float P7;
+    float P8;
+    float P9;
+    float P10;
+    float P11;
+    float P12;
+    float P13;
+    float P14;
+    float P15;
+    float P16;
+    float P17;
+    float P18;
+}
